@@ -59,6 +59,7 @@ def obj_reader(file_path):
 def draw_model(vts, vns, vs, fs, gs, fs_range, texts):
     fs[:, :, 0] = vs.shape[0] - fs[:, :, 0] - 1
     fs = fs[fs_range, :, 0]
+    texts = texts[fs_range]
     texts = np.concatenate((texts, texts), axis=0)
 
     # 사각형을 삼각형으로 변환
