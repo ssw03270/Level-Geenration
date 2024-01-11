@@ -10,7 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 def select_uniform_points(voxels, num_points=10):
     """Select num_points uniformly distributed points from the voxel grid."""
-    random.seed(42)  # 고정된 시드 값
+    random.seed(327)
     nz = np.transpose(np.nonzero(voxels))
     selected_points = random.sample(list(nz), k=min(num_points, len(nz)))
     return [tuple(point) for point in selected_points]
@@ -33,14 +33,18 @@ def find_off_files(root_path):
             if filename.endswith('.off'):
                 key = 'train' if 'train' in dirpath else 'test'
                 off_files[key].append(os.path.join(dirpath, filename))
-    return off_files
 
+    random.shuffle(off_files['train'])
+    random.shuffle(off_files['test'])
+
+    return off_files
 
 def bfs_voxel_edges(voxels, start_point, max_edges=256):
     """Perform BFS from a given start point and return only the edges."""
     visited = set([start_point])
     edges = []
-    sequence = []
+    x_sequence = []
+    y_sequence = []
     queue = Queue()
     queue.put(start_point)
 
@@ -48,7 +52,8 @@ def bfs_voxel_edges(voxels, start_point, max_edges=256):
 
     while not queue.empty() and len(edges) < max_edges:
         current = queue.get()
-        seq = []
+        y_seq = [0, 0, 0, 0, 0, 0]
+
         for idx, d in enumerate(directions):
             neighbor = (current[0] + d[0], current[1] + d[1], current[2] + d[2])
             if (0 <= neighbor[0] < voxels.shape[0] and
@@ -57,12 +62,14 @@ def bfs_voxel_edges(voxels, start_point, max_edges=256):
                     voxels[neighbor] and
                     neighbor not in visited):
                 visited.add(neighbor)
-                edges.append([(current[0] - start_point[0], current[1] - start_point[1], current[2] - start_point[2]),
-                              (neighbor[0] - start_point[0], neighbor[1] - start_point[1], neighbor[2] - start_point[2])])  # Store the edge information
-                seq.append(idx)
+                edges.append([[current[0] - start_point[0], current[1] - start_point[1], current[2] - start_point[2]],
+                              [neighbor[0] - start_point[0], neighbor[1] - start_point[1], neighbor[2] - start_point[2]]])  # Store the edge information
+                y_seq[idx] = 1
                 queue.put(neighbor)
-        sequence.append([(current[0] - start_point[0], current[1] - start_point[1], current[2] - start_point[2]), seq])
-    return sequence, edges
+
+        x_sequence.append([current[0] - start_point[0], current[1] - start_point[1], current[2] - start_point[2]])
+        y_sequence.append(y_seq)
+    return x_sequence, y_sequence, edges
 
 def plot_voxels(voxels, multiple_voxel_coords=None, title='Voxel Visualization'):
     """Plot voxel data or multiple sets of voxel coordinates."""
@@ -95,14 +102,24 @@ def process_single_voxel(file_path, dataset_type, save_dir, visualize=True):
     voxels = off_to_voxel(file_path)
     start_points = select_uniform_points(voxels, num_points=20)
     all_edges = []
-    all_sequences = []
+    all_x_sequences = []
+    all_y_sequences = []
 
     multiple_voxel_coords = []
 
     for start in start_points:
-        sequence, edges = bfs_voxel_edges(voxels, start_point=start)
-        all_edges.extend(edges)
-        all_sequences.extend(sequence)
+        x, y, edges = bfs_voxel_edges(voxels, start_point=start)
+
+        x_sequence = np.full((256, 3), -1)
+        x_sequence[:len(x)] = x
+        y_sequence = np.full((256, 6), -1)
+        y_sequence[:len(y)] = y
+
+        edges = []
+
+        all_edges.append(edges)
+        all_x_sequences.append(x_sequence)
+        all_y_sequences.append(y_sequence)
 
         coords = [edge[0] for edge in edges]
         multiple_voxel_coords.append(coords)
@@ -113,7 +130,7 @@ def process_single_voxel(file_path, dataset_type, save_dir, visualize=True):
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         file_name = f'{save_dir}/{dataset_type}/{base_name}.pkl'
         with open(file_name, 'wb') as f:
-            pickle.dump({'edges': all_edges, 'sequences': all_sequences}, f)
+            pickle.dump({'edges': all_edges, 'x_sequences': all_x_sequences, 'y_sequences': all_y_sequences}, f)
 
 def process_and_save_voxels_parallel(file_paths, dataset_type, save_dir, visualize=True):
     """Process OFF files to voxels in parallel."""
@@ -141,3 +158,4 @@ if __name__ == '__main__':
 
     # Test 데이터 처리 및 저장
     process_and_save_voxels_parallel(off_files['test'], 'test', save_dir, visualize=False)
+

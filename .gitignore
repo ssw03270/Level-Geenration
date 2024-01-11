@@ -2,3 +2,7 @@
 resources
 *.off
 *.pkl
+runs
+wandb
+models
+*.log
