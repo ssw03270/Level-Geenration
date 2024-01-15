@@ -128,21 +128,23 @@ class Trainer:
 
                 # Get the source and target sequences from the batch
                 position_sequence, block_id_sequence, block_semantic_sequence, \
-                    dir_sequence, parent_sequence, pad_mask_sequence = data
+                    dir_sequence, parent_sequence, pad_mask_sequence, terrain_mask_sequence = data
                 position_sequence = position_sequence.to(device=self.device)
                 block_id_sequence = block_id_sequence.to(device=self.device)
                 block_semantic_sequence = block_semantic_sequence.to(device=self.device)
                 dir_sequence = dir_sequence.to(device=self.device)
                 parent_sequence = parent_sequence.to(device=self.device)
                 pad_mask_sequence = pad_mask_sequence.to(device=self.device)
+                terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
                 parent_output, dir_output = self.transformer(position_sequence, block_id_sequence,
                                                              block_semantic_sequence, pad_mask_sequence)
 
                 # Compute the losses
-                loss_parent = self.cross_entropy_loss(parent_output, parent_sequence.detach(), pad_mask_sequence.detach())
-                loss_dir = self.cross_entropy_loss(dir_output, dir_sequence.detach(), pad_mask_sequence.detach())
+                mask = pad_mask_sequence & terrain_mask_sequence
+                loss_parent = self.cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
+                loss_dir = self.cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
                 loss = loss_parent + loss_dir
                 # Backpropagation and optimization step
                 loss.backward()
@@ -151,10 +153,10 @@ class Trainer:
 
                 loss_parent_sum += loss_parent.detach()
                 loss_dir_sum += loss_dir.detach()
-                true_parent_sum, problem_parent_sum = self.get_accuracy(parent_output.detach(), parent_sequence.detach(), pad_mask_sequence.detach())
+                true_parent_sum, problem_parent_sum = self.get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
                 true_parent_sums += true_parent_sum
                 problem_parent_sums += problem_parent_sum
-                true_dir_sum, problem_dir_sum = self.get_accuracy(dir_output.detach(), dir_sequence.detach(), pad_mask_sequence.detach())
+                true_dir_sum, problem_dir_sum = self.get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
                 true_dir_sums += true_dir_sum
                 problem_dir_sums += problem_dir_sum
 
@@ -193,8 +195,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a transformer with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
-    parser.add_argument("--d_hidden", type=int, default=256, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=256, help="Batch size for training.")
+    parser.add_argument("--d_hidden", type=int, default=512, help="Batch size for training.")
     parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")

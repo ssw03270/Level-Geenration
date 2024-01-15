@@ -22,6 +22,7 @@ class CraftAssistDataset(Dataset):
         self.dir_sequences = []
         self.parent_sequences = []
         self.pad_mask_sequences = []
+        self.terrain_mask_sequences = []
 
         with open(self.file_path, 'rb') as f:
             data = pickle.load(f)
@@ -40,6 +41,7 @@ class CraftAssistDataset(Dataset):
             block_semantic_sequence = []
             dir_sequence = []
             parent_sequence = []
+            terrain_mask_sequence = []
 
             data_length = len(input_sequence)
             if data_length > 2040:
@@ -51,6 +53,7 @@ class CraftAssistDataset(Dataset):
                 block_semantic_sequence.append(input_data[2])
                 dir_sequence.append(output_data[0])
                 parent_sequence.append(output_data[1])
+                terrain_mask_sequence.append(input_data[2] != 'terrain')
 
             pad_length = 2048 - 2 - data_length
             position_sequence = [[0, 0, 0]] + position_sequence + [[0, 0, 0]] + [[0, 0, 0]] * pad_length
@@ -59,6 +62,7 @@ class CraftAssistDataset(Dataset):
             dir_sequence = [0] + dir_sequence + [0] + [0] * pad_length
             parent_sequence = [0] + parent_sequence + [0] + [0] * pad_length
             pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
+            terrain_mask_sequence = [False] + terrain_mask_sequence + [False] + [False] * pad_length
 
             self.position_sequences.append(position_sequence)
             self.block_id_sequences.append(block_id_sequence)
@@ -66,6 +70,7 @@ class CraftAssistDataset(Dataset):
             self.dir_sequences.append(dir_sequence)
             self.parent_sequences.append(parent_sequence)
             self.pad_mask_sequences.append(pad_mask_sequence)
+            self.terrain_mask_sequences.append(terrain_mask_sequence)
 
         self.position_sequences = self.min_max_scaling(np.array(self.position_sequences))
 
@@ -79,6 +84,7 @@ class CraftAssistDataset(Dataset):
         dir_sequence = self.dir_sequences[idx]
         parent_sequence = self.parent_sequences[idx]
         pad_mask_sequence = self.pad_mask_sequences[idx]
+        terrain_mask_sequence = self.terrain_mask_sequences[idx]
 
         position_sequence = torch.tensor(position_sequence, dtype=torch.float32)
         block_id_sequence = torch.tensor(block_id_sequence, dtype=torch.long)
@@ -86,8 +92,9 @@ class CraftAssistDataset(Dataset):
         dir_sequence = torch.tensor(dir_sequence, dtype=torch.long)
         parent_sequence = torch.tensor(parent_sequence, dtype=torch.long)
         pad_mask_sequence = torch.tensor(pad_mask_sequence, dtype=torch.bool)
+        terrain_mask_sequence = torch.tensor(terrain_mask_sequence, dtype=torch.bool)
 
-        return position_sequence, block_id_sequence, block_semantic_sequence, parent_sequence, dir_sequence, pad_mask_sequence
+        return position_sequence, block_id_sequence, block_semantic_sequence, parent_sequence, dir_sequence, pad_mask_sequence, terrain_mask_sequence
 
     def __len__(self):
         return self.data_length
