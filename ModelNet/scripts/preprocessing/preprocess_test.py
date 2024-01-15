@@ -1,12 +1,10 @@
-import pickle
+import time
 import os
 import random
 import trimesh
 import numpy as np
 import matplotlib.pyplot as plt
 from queue import Queue
-from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 def select_uniform_points(voxels, num_points=10):
     """Select num_points uniformly distributed points from the voxel grid."""
@@ -16,13 +14,22 @@ def select_uniform_points(voxels, num_points=10):
     return [tuple(point) for point in selected_points]
 
 
-def off_to_voxel(off_path, voxel_size=0.05):
-    """Convert an OFF file to a voxel grid, normalizing the mesh to fit within a -1 to 1 cube."""
+def off_to_voxel(off_path, voxel_resolution=32):
+    """Convert an OFF file to a voxel grid with a fixed number of voxels."""
+    # 메시 로드
     mesh = trimesh.load(off_path, file_type='off')
+    # 메시를 원점으로 이동
     mesh.apply_translation(-mesh.centroid)
-    max_extent = np.max(mesh.extents)
-    mesh.apply_scale(2 / max_extent)
-    voxel_grid = mesh.voxelized(pitch=voxel_size)
+    # Normalize the mesh to fit it inside a unit cube
+    bounding_box = mesh.bounding_box.bounds
+    scale = 1.0 / max(bounding_box[1] - bounding_box[0])
+    translation = -bounding_box[0]
+    mesh.apply_translation(translation)
+    mesh.apply_scale(scale)
+    # 고정된 복셀 크기를 위한 pitch 계산
+    pitch = 2 / voxel_resolution
+    # 복셀화
+    voxel_grid = mesh.voxelized(pitch=pitch)
     return voxel_grid.matrix
 
 def find_off_files(root_path):
@@ -76,7 +83,7 @@ def bfs_voxel_edges(voxels, start_point, max_voxels=256):
     parent_sequence = parent_sequence[1:]
     return parent_sequence, child_sequence, dir_sequence
 
-def plot_voxels(voxels, multiple_voxel_coords=None, title='Voxel Visualization'):
+def plot_voxels(voxels, title='Voxel Visualization'):
     """Plot voxel data or multiple sets of voxel coordinates."""
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -89,47 +96,17 @@ def plot_voxels(voxels, multiple_voxel_coords=None, title='Voxel Visualization')
     ax.set_zlabel('Z axis')
     ax.set_title(title)
 
-    # 색상을 위한 컬러맵
-    colors = plt.cm.jet(np.linspace(0, 1, len(multiple_voxel_coords)))
-
-    if multiple_voxel_coords is not None:
-        for voxel_coords, color in zip(multiple_voxel_coords, colors):
-            x, y, z = zip(*voxel_coords)
-            ax.scatter(x, y, z, c=[color], marker='o')
-    else:
-        x, y, z = np.nonzero(voxels)
-        ax.scatter(x, y, z, zdir='z', c='red')
+    x, y, z = np.nonzero(voxels)
+    print(len(x))
+    ax.scatter(x, y, z, zdir='z', c='red')
 
     plt.show()
 
 def process_single_voxel(file_path, dataset_type, save_dir, visualize=True):
     """Process a single OFF file to voxels, optionally save them, and optionally plot the result."""
     voxels = off_to_voxel(file_path)
-    start_points = select_uniform_points(voxels, num_points=20)
-
-    for idx, start in enumerate(start_points):
-        parent_seq, child_seq, dir_seq = bfs_voxel_edges(voxels, start_point=start)
-
-        if visualize:
-            plot_voxels(voxels, child_seq, title='Multiple BFS Voxels')
-        else:
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            file_name = f'{save_dir}/{dataset_type}/{base_name}_{idx}.pkl'
-            with open(file_name, 'wb') as f:
-                pickle.dump({'parent_sequences': parent_seq,
-                             'child_sequences': child_seq,
-                             'dir_sequences': dir_seq}, f)
-
-def process_and_save_voxels_parallel(file_paths, dataset_type, save_dir, visualize=True):
-    """Process OFF files to voxels in parallel."""
-    if not visualize:
-        os.makedirs(f'{save_dir}/{dataset_type}', exist_ok=True)
-
-    # 병렬 처리를 위한 ProcessPoolExecutor 사용
-    with ProcessPoolExecutor() as executor:
-        futures = [executor.submit(process_single_voxel, file_path, dataset_type, save_dir, visualize) for file_path in file_paths]
-        for future in tqdm(as_completed(futures), total=len(file_paths)):
-            future.result()  # 결과 처리 혹은 예외 처리
+    plot_voxels(voxels)
+    print(file_path, len(voxels))
 
 if __name__ == '__main__':
     # Example usage
@@ -138,12 +115,7 @@ if __name__ == '__main__':
 
     print(f"Processing {len(off_files['train'])} train files and {len(off_files['test'])} test files")
 
-    # 저장할 디렉토리 (존재해야 함)
-    save_dir = './processed_voxels'
-
-    # Train 데이터 처리 및 저장
-    process_and_save_voxels_parallel(off_files['train'], 'train', save_dir, visualize=False)
-
-    # Test 데이터 처리 및 저장
-    process_and_save_voxels_parallel(off_files['test'], 'test', save_dir, visualize=False)
+    for file_path in off_files['train']:
+        process_single_voxel(file_path, '', '', visualize=True)
+        time.sleep(0.5)
 

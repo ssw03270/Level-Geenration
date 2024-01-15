@@ -2,10 +2,6 @@ import torch
 import torch.nn as nn
 from layer import EncoderLayer, DecoderLayer
 
-def get_pad_mask(seq, pad_idx):
-    mask = (seq != pad_idx)
-    return mask
-
 class TrnasformerEncoder(nn.Module):
     def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
         super(TrnasformerEncoder, self).__init__()
@@ -16,11 +12,11 @@ class TrnasformerEncoder(nn.Module):
             for _ in range(n_layer)
         ])
 
-    def forward(self, enc_input):
+    def forward(self, enc_input, enc_mask):
         enc_output = self.dropout(enc_input)
 
         for enc_layer in self.layer_stack:
-            enc_output = enc_layer(enc_output)
+            enc_output = enc_layer(enc_output, enc_mask)
 
         return enc_output
 
@@ -47,33 +43,44 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
         super().__init__()
 
-        self.voxel_encoding = nn.Linear(3, d_model)
-        self.dir_encoding = nn.Embedding(6, d_model)
+        self.parent_embedding = nn.Embedding(256, d_model)
+        self.child_encoding = nn.Linear(3, d_model)
 
-        self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
-        self.decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
+        self.parent_encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
+        self.parent_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
 
-        self.decoding = nn.Linear(d_model, 6)
+        self.child_encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
+        self.child_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model, d_inner=d_hidden, dropout=dropout)
 
-    def get_subsequent_mask(self, seq):
+        self.parent_decoding = nn.Linear(d_model, 256)
+        self.dir_decoding = nn.Linear(d_model, 6)
+
+    def get_subsequent_mask(self, seq, diagonal):
         sz_b, len_s = seq.size()
         subsequent_mask = (1 - torch.triu(
-            torch.ones((1, len_s, len_s), device=seq.device), diagonal=1)).bool()
+            torch.ones((1, len_s, len_s), device=seq.device), diagonal=diagonal)).bool()
         return subsequent_mask
 
-    def forward(self, x_seq, y_seq, edge):
-        dir = torch.tensor([0, 1, 2, 3, 4, 5])
-        dir = dir.unsqueeze(0).repeat(x_seq.shape[0], 1).to(x_seq.device)
-        dir = self.dir_encoding(dir)
-        dir = self.encoder(dir)
+    def forward(self, parent_seq, child_seq, pad_mask):
+        parent_embedd = self.parent_embedding(parent_seq)
+        child_encode = self.child_encoding(child_seq)
 
-        x_seq = self.voxel_encoding(x_seq)
-        pad_mask = get_pad_mask(y_seq[:, :, 0], -1).unsqueeze(1)
-        sub_mask = self.get_subsequent_mask(x_seq[:, :, 0])
-        dec_mask = pad_mask & sub_mask
-        output = self.decoder(x_seq, dir, dec_mask)
+        pad_mask = pad_mask.unsqueeze(1)
 
-        output = self.decoding(output)
-        output = torch.sigmoid(output)
+        child_mask = pad_mask & self.get_subsequent_mask(parent_seq, diagonal=1)
+        parent_mask = pad_mask & self.get_subsequent_mask(parent_seq, diagonal=1)
+        parent_encoder_output = self.parent_encoder(child_encode, child_mask)
+        parent_decoder_output = self.parent_decoder(parent_embedd, parent_encoder_output, parent_mask)
 
-        return output
+        parent_mask = pad_mask & self.get_subsequent_mask(parent_seq, diagonal=2)
+        child_mask = pad_mask & self.get_subsequent_mask(parent_seq, diagonal=1)
+        child_encoder_output = self.parent_encoder(parent_embedd, parent_mask)
+        child_decoder_output = self.parent_decoder(child_encode, child_encoder_output, child_mask)
+
+        output_parent = self.parent_decoding(parent_decoder_output)
+        output_dir = self.dir_decoding(child_decoder_output)
+
+        output_parent = torch.softmax(output_parent, dim=-1)
+        output_dir = torch.softmax(output_dir, dim=-1)
+
+        return output_parent, output_dir

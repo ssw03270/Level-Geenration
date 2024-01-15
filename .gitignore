@@ -6,3 +6,5 @@ runs
 wandb
 models
 *.log
+datasets
+output
