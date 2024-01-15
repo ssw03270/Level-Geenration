@@ -196,7 +196,7 @@ if __name__ == '__main__':
 
     # Define the arguments with their descriptions
     parser.add_argument("--d_model", type=int, default=512, help="Batch size for training.")
-    parser.add_argument("--d_hidden", type=int, default=1024, help="Batch size for training.")
+    parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
     parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     parser.add_argument("--use_checkpoint", type=bool, default=False, help="Use checkpoint model.")
     parser.add_argument("--checkpoint_epoch", type=int, default=0, help="Use checkpoint index.")
     parser.add_argument("--val_epoch", type=int, default=1, help="Use checkpoint index.")
-    parser.add_argument("--save_epoch", type=int, default=1, help="Use checkpoint index.")
+    parser.add_argument("--save_epoch", type=int, default=10, help="Use checkpoint index.")
     parser.add_argument("--save_dir_path", type=str, default="transformer", help="save dir path")
     parser.add_argument("--lr", type=float, default=3e-5, help="save dir path")
 
