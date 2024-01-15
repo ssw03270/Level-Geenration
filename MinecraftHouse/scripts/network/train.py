@@ -149,7 +149,7 @@ class Trainer:
                 # Backpropagation and optimization step
                 loss.backward()
                 self.optimizer.step()
-                self.scheduler.step()
+                # self.scheduler.step()
 
                 loss_parent_sum += loss_parent.detach()
                 loss_dir_sum += loss_dir.detach()
