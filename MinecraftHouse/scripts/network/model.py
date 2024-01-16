@@ -34,6 +34,8 @@ class Transformer(nn.Module):
         self.attention = MultiHeadAttention(n_head=1, d_model=d_model, dropout=dropout)
         self.ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_hidden, dropout=dropout)
         self.dir_decoding = nn.Linear(d_model, 26)
+        self.id_decoding = nn.Linear(d_model, 253)
+        self.category_decoding = nn.Linear(d_model, 701)
 
     def get_subsequent_mask(self, seq, diagonal):
         sz_b, len_s = seq.size()
@@ -53,12 +55,18 @@ class Transformer(nn.Module):
         enc_input = position_sequence + block_id_sequence + block_semantic_sequence
         enc_output = self.encoder(enc_input, mask)
 
-        dir_output, parent_output = self.attention(enc_output, enc_output, enc_output, mask)
+        sub_output, parent_output = self.attention(enc_output, enc_output, enc_output, mask)
+        sub_output = self.ffn(sub_output)
 
-        dir_output = self.ffn(dir_output)
-        dir_output = self.dir_decoding(dir_output)
+        dir_output = self.dir_decoding(sub_output)
         dir_output = torch.softmax(dir_output, dim=-1)
+
+        id_output = self.dir_decoding(sub_output)
+        id_output = torch.softmax(id_output, dim=-1)
+
+        category_output = self.dir_decoding(sub_output)
+        category_output = torch.softmax(category_output, dim=-1)
 
         parent_output = parent_output.squeeze()
 
-        return parent_output, dir_output
+        return parent_output, dir_output, id_output, category_output

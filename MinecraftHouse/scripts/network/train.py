@@ -116,10 +116,18 @@ class Trainer:
         for epoch in range(epoch_start, self.max_epoch):
             loss_parent_sum = 0
             loss_dir_sum = 0
+            loss_id_sum = 0
+            loss_category_sum = 0
+
             true_parent_sums = 0
             true_dir_sums = 0
+            true_id_sums = 0
+            true_category_sums = 0
+
             problem_parent_sums = 0
             problem_dir_sums = 0
+            problem_id_sums = 0
+            problem_category_sums = 0
 
             # Iterate over batches
             for data in tqdm(self.train_dataloader):
@@ -138,14 +146,19 @@ class Trainer:
                 terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
-                parent_output, dir_output = self.transformer(position_sequence, block_id_sequence,
-                                                             block_semantic_sequence, pad_mask_sequence)
+                parent_output, dir_output, id_output, category_output = self.transformer(position_sequence,
+                                                                                         block_id_sequence,
+                                                                                         block_semantic_sequence,
+                                                                                         pad_mask_sequence)
 
                 # Compute the losses
                 mask = pad_mask_sequence & terrain_mask_sequence
                 loss_parent = self.cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
                 loss_dir = self.cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
-                loss = loss_parent + loss_dir
+                loss_id = self.cross_entropy_loss(id_output[:-1], block_id_sequence[1:].detach(), mask[1:].detach())
+                loss_category = self.cross_entropy_loss(category_output[:-1], block_semantic_sequence[1:].detach(), mask[1:].detach())
+                loss = loss_parent + loss_dir + loss_id + loss_category
+
                 # Backpropagation and optimization step
                 loss.backward()
                 self.optimizer.step()
@@ -153,28 +166,52 @@ class Trainer:
 
                 loss_parent_sum += loss_parent.detach()
                 loss_dir_sum += loss_dir.detach()
+                loss_id_sum += loss_id.detach()
+                loss_category_sum += loss_category.detach()
+
                 true_parent_sum, problem_parent_sum = self.get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
                 true_parent_sums += true_parent_sum
                 problem_parent_sums += problem_parent_sum
-                true_dir_sum, problem_dir_sum = self.get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
-                true_dir_sums += true_dir_sum
-                problem_dir_sums += problem_dir_sum
+
+                true_id_sum, problem_id_sum = self.get_accuracy(id_output[:-1].detach(), block_id_sequence[1:].detach(), mask[1:].detach())
+                true_id_sums += true_id_sum
+                problem_id_sums += problem_id_sum
+
+                true_category_sum, problem_category_sum = self.get_accuracy(category_output[:-1].detach(), block_semantic_sequence[1:].detach(), mask[1:].detach())
+                true_category_sums += true_category_sum
+                problem_category_sums += problem_category_sum
 
                 # 첫 번째 GPU에서만 평균 손실을 계산하고 출력 <-- 수정된 부분
             loss_parent_mean = loss_parent_sum / (len(self.train_dataloader))
             loss_dir_mean = loss_dir_sum / (len(self.train_dataloader))
+            loss_id_mean = loss_id_sum / (len(self.train_dataloader))
+            loss_category_mean = loss_category_sum / (len(self.train_dataloader))
+
             true_parent_mean = true_parent_sums / problem_parent_sums
             true_dir_mean = true_dir_sums / problem_dir_sums
+            true_id_mean = true_id_sums / problem_id_sums
+            true_category_mean = true_category_sums / problem_category_sums
+
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE parent: {loss_parent_mean:.4f}")
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
+            print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
+            print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
+
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy parent: {true_parent_mean:.4f}")
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy dir: {true_dir_mean:.4f}")
+            print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
+            print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
 
             if self.use_wandb:
                 wandb.log({"Train ce parent": loss_parent_mean}, step=epoch + 1)
                 wandb.log({"Train ce dir": loss_dir_mean}, step=epoch + 1)
+                wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
+                wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
+
                 wandb.log({"Train accuracy parent": true_parent_mean}, step=epoch + 1)
                 wandb.log({"Train accuracy dir": true_dir_mean}, step=epoch + 1)
+                wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
+                wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
 
             if (epoch + 1) % self.save_epoch == 0:
                 # 체크포인트 데이터 준비
