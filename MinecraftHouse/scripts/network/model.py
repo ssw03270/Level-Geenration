@@ -35,7 +35,7 @@ class Transformer(nn.Module):
         self.ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_hidden, dropout=dropout)
         self.dir_decoding = nn.Linear(d_model, 26)
         self.id_decoding = nn.Linear(d_model, 253)
-        self.category_decoding = nn.Linear(d_model, 701)
+        self.category_decoding = nn.Linear(d_model, 33 + 3)
 
     def get_subsequent_mask(self, seq, diagonal):
         sz_b, len_s = seq.size()
