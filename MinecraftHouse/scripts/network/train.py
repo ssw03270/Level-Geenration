@@ -155,8 +155,8 @@ class Trainer:
                 mask = pad_mask_sequence & terrain_mask_sequence
                 loss_parent = self.cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
                 loss_dir = self.cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
-                loss_id = self.cross_entropy_loss(id_output[:-1], block_id_sequence[1:].detach(), mask[1:].detach())
-                loss_category = self.cross_entropy_loss(category_output[:-1], block_semantic_sequence[1:].detach(), mask[1:].detach())
+                loss_id = self.cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                loss_category = self.cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss = loss_parent + loss_dir + loss_id + loss_category
 
                 # Backpropagation and optimization step
@@ -177,11 +177,11 @@ class Trainer:
                 true_dir_sums += true_dir_sum
                 problem_dir_sums += problem_dir_sum
 
-                true_id_sum, problem_id_sum = self.get_accuracy(id_output[:-1].detach(), block_id_sequence[1:].detach(), mask[1:].detach())
+                true_id_sum, problem_id_sum = self.get_accuracy(id_output[:, :-1].detach(), block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
-                true_category_sum, problem_category_sum = self.get_accuracy(category_output[:-1].detach(), block_semantic_sequence[1:].detach(), mask[1:].detach())
+                true_category_sum, problem_category_sum = self.get_accuracy(category_output[:, :-1].detach(), block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 true_category_sums += true_category_sum
                 problem_category_sums += problem_category_sum
 
