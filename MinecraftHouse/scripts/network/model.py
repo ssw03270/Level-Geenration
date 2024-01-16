@@ -27,7 +27,7 @@ class Transformer(nn.Module):
 
         self.position_encoding = nn.Linear(3, d_model)
         self.block_id_embedding = nn.Embedding(253, d_model)
-        self.block_semantic_embedding = nn.Embedding(701, d_model)
+        self.block_semantic_embedding = nn.Embedding(33, d_model)
 
         self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                           d_inner=d_hidden, dropout=dropout)
