@@ -61,10 +61,10 @@ class Transformer(nn.Module):
         dir_output = self.dir_decoding(sub_output)
         dir_output = torch.softmax(dir_output, dim=-1)
 
-        id_output = self.dir_decoding(sub_output)
+        id_output = self.id_decoding(sub_output)
         id_output = torch.softmax(id_output, dim=-1)
 
-        category_output = self.dir_decoding(sub_output)
+        category_output = self.category_decoding(sub_output)
         category_output = torch.softmax(category_output, dim=-1)
 
         parent_output = parent_output.squeeze()
