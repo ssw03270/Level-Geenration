@@ -173,6 +173,10 @@ class Trainer:
                 true_parent_sums += true_parent_sum
                 problem_parent_sums += problem_parent_sum
 
+                true_dir_sum, problem_dir_sum = self.get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
+                true_dir_sums += true_dir_sum
+                problem_dir_sums += problem_dir_sum
+
                 true_id_sum, problem_id_sum = self.get_accuracy(id_output[:-1].detach(), block_id_sequence[1:].detach(), mask[1:].detach())
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
