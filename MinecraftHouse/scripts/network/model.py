@@ -27,7 +27,7 @@ class TrnasformerEncoder(nn.Module):
     def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
         super(TrnasformerEncoder, self).__init__()
 
-        self.pos_enc = PositionalEncoding(d_model, 2048)
+        # self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout)
@@ -35,7 +35,7 @@ class TrnasformerEncoder(nn.Module):
         ])
 
     def forward(self, enc_input, enc_mask):
-        enc_output = enc_input + self.pos_enc(enc_input)
+        enc_output = enc_input # + self.pos_enc(enc_input)
         enc_output = self.dropout(enc_output)
 
         for enc_layer in self.layer_stack:
