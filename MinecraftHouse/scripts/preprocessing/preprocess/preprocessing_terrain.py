@@ -36,7 +36,7 @@ def solve(grid):
     return grid
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/preprocessed_training_data.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/preprocessed_training_data.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         height_list = np.array(height_list)
         height_lists.append(height_list)
 
-    with open('../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl', 'wb') as f:
+    with open('../../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl', 'wb') as f:
         pickle.dump({'schematics': schematics,
                      'annotated_schematics': annotated_schematics,
                      'annotation_list': annotation_list,

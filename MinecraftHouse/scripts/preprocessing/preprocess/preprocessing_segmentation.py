@@ -55,7 +55,7 @@ def check_file(data, idx):
     return 0, None
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/training_data.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/training_data.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
                 house_name.append(output2[3])
 
     print(true_files)
-    with open('../../datasets/instance_segmentation_data/preprocessed_training_data.pkl', 'wb') as f:
+    with open('../../../datasets/instance_segmentation_data/preprocessed_training_data.pkl', 'wb') as f:
         pickle.dump({'schematics': schematics,
                      'annotated_schematic': annotated_schematic,
                      'annotation_list': annotation_list,

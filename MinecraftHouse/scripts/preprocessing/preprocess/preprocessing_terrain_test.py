@@ -79,7 +79,7 @@ def plot(schematic, idx):
     plt.savefig(f'output/{idx}')
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/preprocessed_training_data.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/preprocessed_training_data.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 

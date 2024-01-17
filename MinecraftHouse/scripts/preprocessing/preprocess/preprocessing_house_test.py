@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 

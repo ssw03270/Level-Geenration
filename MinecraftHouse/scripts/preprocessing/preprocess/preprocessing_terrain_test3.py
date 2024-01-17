@@ -30,7 +30,7 @@ def calc_transformation(placed_list):
     return transform
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 

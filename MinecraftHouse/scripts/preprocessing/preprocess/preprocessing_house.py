@@ -50,7 +50,7 @@ def check(height_list, schematic, annotated_schematic, annotation_list):
     return 0, input_sequence, output_sequence
 
 if __name__ == '__main__':
-    file_path = '../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
+    file_path = '../../../datasets/instance_segmentation_data/preprocessed_training_data_with_terrain.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 
@@ -75,6 +75,6 @@ if __name__ == '__main__':
     print(f'fail: {fail_count}, total: {len(schematics)}')
     print(f'longest_sequence: {len(max(input_sequences, key=len))}')
 
-    with open('../../datasets/training_data.pkl', 'wb') as f:
+    with open('../../../datasets/training_data.pkl', 'wb') as f:
         pickle.dump({'input_sequences': input_sequences,
                      'output_sequences': output_sequences}, f)

@@ -2,7 +2,7 @@ import pickle
 import matplotlib.pyplot as plt
 from collections import Counter
 
-with open('../../datasets/training_data.pkl', 'rb') as f:
+with open('../../../datasets/training_data.pkl', 'rb') as f:
     data = pickle.load(f)
 
 print(data['input_sequences'][0])
