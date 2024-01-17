@@ -88,8 +88,8 @@ class Trainer:
         - torch.Tensor: Computed BCE loss.
         """
         pred = pred.reshape(-1, pred.size(-1))
-        trg = trg.view(-1)
-        mask = mask.view(-1)
+        trg = trg.reshape(-1)
+        mask = mask.reshape(-1)
 
         loss = F.cross_entropy(pred, trg, reduction='none')
         masked_loss = loss * mask.float()
