@@ -87,12 +87,11 @@ class Trainer:
         Returns:
         - torch.Tensor: Computed BCE loss.
         """
-        trg = torch.nn.functional.one_hot(trg, pred.shape[2])
-        pred = pred.view(-1, pred.size(-1))
-        trg = trg.view(-1, trg.size(-1))
+        pred = pred.reshape(-1, pred.size(-1))
+        trg = trg.view(-1)
         mask = mask.view(-1)
 
-        loss = F.cross_entropy(pred, trg.float(), reduction='none')
+        loss = F.cross_entropy(pred, trg, reduction='none')
         masked_loss = loss * mask.float()
 
         return masked_loss.sum() / mask.float().sum()
