@@ -1,12 +1,33 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from layer import EncoderLayer
 from sub_layer import MultiHeadAttention, PositionwiseFeedForward
 
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_hid, seq_length):
+        super(PositionalEncoding, self).__init__()
+        self.register_buffer('pos_table', self._get_sinusoid_encoding_table(seq_length, d_hid))
+
+    def _get_sinusoid_encoding_table(self, seq_length, d_hid):
+
+        def get_position_angle_vec(position):
+            return [position / np.power(10000, 2 * (hid_j // 2) / d_hid) for hid_j in range(d_hid)]
+
+        sinusoid_table = np.array([get_position_angle_vec(pos_i) for pos_i in range(seq_length)])
+        sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])
+        sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])
+
+        return torch.FloatTensor(sinusoid_table).unsqueeze(0)
+
+    def forward(self, x):
+        return self.pos_table[:, :x.size(1)].clone().detach()
+
 class TrnasformerEncoder(nn.Module):
     def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
         super(TrnasformerEncoder, self).__init__()
 
+        self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout)
@@ -14,7 +35,8 @@ class TrnasformerEncoder(nn.Module):
         ])
 
     def forward(self, enc_input, enc_mask):
-        enc_output = self.dropout(enc_input)
+        enc_output = enc_input + self.pos_enc(enc_input)
+        enc_output = self.dropout(enc_output)
 
         for enc_layer in self.layer_stack:
             enc_output = enc_layer(enc_output, enc_mask)
