@@ -22,7 +22,7 @@ dictionary = {'frame': 'chimney', 'attic': 'lighting', 'rafter': 'stairs', 'torc
               'torchlights': 'wall', 'door': 'door', 'entry': 'roof', 'balcony door': 'ground',
               'crafting table': 'awning', 'lava': 'corridor', 'decor': 'beam', 'parapet': 'parapet',
               'window boxes': 'stairs', 'garden soil': 'shutters', 'wooden roof': 'shutters', 'lightbulb': 'awning',
-              'leaf': 'dome', '2nd floor lights': 'corridor', 'terrain': 'ground', 'bottom': 'balcony',
+              'leaf': 'dome', '2nd floor lights': 'corridor', 'terrain': 'terrain', 'bottom': 'balcony',
               'driveway': 'door', 'yard': 'tower', 'first floor': 'wall', 'backyard': 'roof', 'ice pillar': 'tower',
               'porch overhang': 'shutters', 'furniture': 'furniture', 'support beams': 'stairs',
               'concrete column': 'stairs', 'fan': 'lighting', 'torches (indoors, first floor) ()': 'shutters',
