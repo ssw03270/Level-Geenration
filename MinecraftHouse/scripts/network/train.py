@@ -15,6 +15,37 @@ from dataloader import CraftAssistDataset
 
 import wandb
 
+
+def cross_entropy_loss(pred, trg, mask):
+    """
+    Compute the binary cross-entropy loss between predictions and targets.
+
+    Args:
+    - pred (torch.Tensor): Model predictions.
+    - trg (torch.Tensor): Ground truth labels.
+
+    Returns:
+    - torch.Tensor: Computed BCE loss.
+    """
+    pred = pred.reshape(-1, pred.size(-1))
+    trg = trg.reshape(-1)
+    mask = mask.reshape(-1)
+
+    loss = F.cross_entropy(pred, trg, reduction='none')
+    masked_loss = loss * mask.float()
+
+    return masked_loss.sum() / mask.float().sum()
+
+
+def get_accuracy(pred, trg, mask):
+    # 가장 높은 확률을 갖는 클래스 인덱스를 얻음
+    pred = torch.argmax(pred, dim=-1)
+    # 정확도 계산
+    correct = (trg[mask] == pred[mask]).sum().item()
+    total = mask.sum().item()
+
+    return correct, total
+
 class Trainer:
     def __init__(self, d_model, d_hidden, n_head, n_layer,
                  batch_size, max_epoch,
@@ -76,35 +107,6 @@ class Trainer:
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                          num_training_steps=num_train_steps)
 
-    def cross_entropy_loss(self, pred, trg, mask):
-        """
-        Compute the binary cross-entropy loss between predictions and targets.
-
-        Args:
-        - pred (torch.Tensor): Model predictions.
-        - trg (torch.Tensor): Ground truth labels.
-
-        Returns:
-        - torch.Tensor: Computed BCE loss.
-        """
-        pred = pred.reshape(-1, pred.size(-1))
-        trg = trg.reshape(-1)
-        mask = mask.reshape(-1)
-
-        loss = F.cross_entropy(pred, trg, reduction='none')
-        masked_loss = loss * mask.float()
-
-        return masked_loss.sum() / mask.float().sum()
-
-    def get_accuracy(self, pred, trg, mask):
-        # 가장 높은 확률을 갖는 클래스 인덱스를 얻음
-        pred = torch.argmax(pred, dim=-1)
-        # 정확도 계산
-        correct = (trg[mask] == pred[mask]).sum().item()
-        total = mask.sum().item()
-
-        return correct, total
-
     def train(self):
         """Training loop for the transformer model."""
         epoch_start = 0
@@ -152,10 +154,10 @@ class Trainer:
 
                 # Compute the losses
                 mask = pad_mask_sequence & terrain_mask_sequence
-                loss_parent = self.cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
-                loss_dir = self.cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
-                loss_id = self.cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                loss_category = self.cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                loss_parent = cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
+                loss_dir = cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
+                loss_id = cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                loss_category = cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss = loss_parent + loss_dir + loss_id + loss_category
 
                 # Backpropagation and optimization step
@@ -168,19 +170,19 @@ class Trainer:
                 loss_id_sum += loss_id.detach()
                 loss_category_sum += loss_category.detach()
 
-                true_parent_sum, problem_parent_sum = self.get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
+                true_parent_sum, problem_parent_sum = get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
                 true_parent_sums += true_parent_sum
                 problem_parent_sums += problem_parent_sum
 
-                true_dir_sum, problem_dir_sum = self.get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
+                true_dir_sum, problem_dir_sum = get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
                 true_dir_sums += true_dir_sum
                 problem_dir_sums += problem_dir_sum
 
-                true_id_sum, problem_id_sum = self.get_accuracy(id_output[:, :-1].detach(), block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                true_id_sum, problem_id_sum = get_accuracy(id_output[:, :-1].detach(), block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
-                true_category_sum, problem_category_sum = self.get_accuracy(category_output[:, :-1].detach(), block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                true_category_sum, problem_category_sum = get_accuracy(category_output[:, :-1].detach(), block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 true_category_sums += true_category_sum
                 problem_category_sums += problem_category_sum
 
