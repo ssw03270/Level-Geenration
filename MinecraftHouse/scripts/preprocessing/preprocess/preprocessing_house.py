@@ -41,18 +41,45 @@ dir_dictionary = {
 # }
 
 def check(height_list, schematic, annotated_schematic, annotation_list):
+    input_sequence = [[[0, 0, 0], 0, 'sos']]
+    output_sequence = [[0, 0]]
+
     block_sequence = []
     for height in height_list:
         block_sequence.append([height.tolist(), 2, 'terrain'])
+
+    least_num = 0
+    while len(block_sequence) > 0:
+        new_input_sequence = []
+        for idx, new_seq in enumerate(input_sequence):
+            for block_seq in block_sequence:
+                for dir_idx in range(len(dir_dictionary)):
+                    dx = dir_dictionary[dir_idx][0]
+                    dy = dir_dictionary[dir_idx][1]
+                    dz = dir_dictionary[dir_idx][2]
+
+                    if block_seq[0] == [new_seq[0][0] + dx, new_seq[0][1] + dy, new_seq[0][2] + dz]:
+                        new_input_sequence.append(block_seq)
+                        block_sequence.remove(block_seq)
+
+                        output_sequence.append([idx, dir_idx])
+
+        input_sequence += new_input_sequence
+
+        if len(block_sequence) == 0:
+            break
+
+        if least_num == len(block_sequence):
+            break
+
+        least_num = len(block_sequence)
+
     for x in range(schematic.shape[0]):
         for y in range(schematic.shape[1]):
             for z in range(schematic.shape[2]):
                 if schematic[x, y, z] > 0:
                     block_sequence.append(
                         [[x, y, z], schematic[x, y, z], annotation_list[int(annotated_schematic[x, y, z])]])
-
-    input_sequence = [[[0, 0, 0], 0, 'sos']]
-    output_sequence = [[0, 0]]
 
     least_num = 0
     while len(block_sequence) > 0:
