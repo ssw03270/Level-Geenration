@@ -139,7 +139,7 @@ class Trainer:
 
         if self.use_wandb:
             if self.local_rank == 0:
-                wandb.watch(self.transformer, log='all')
+                wandb.watch(self.transformer.module, log='all')
 
         for epoch in range(epoch_start, self.max_epoch):
             loss_parent_sum = torch.Tensor([0.0]).to(self.device)
@@ -231,16 +231,16 @@ class Trainer:
                 problem_category_sums += problem_category_sum
 
             if self.local_rank == 0:
-                loss_parent_mean = loss_parent_sum / (len(self.train_dataloader) * dist.get_world_size())
-                loss_dir_mean = loss_dir_sum / (len(self.train_dataloader) * dist.get_world_size())
-                loss_id_mean = loss_id_sum / (len(self.train_dataloader) * dist.get_world_size())
-                loss_category_mean = loss_category_sum / (len(self.train_dataloader) * dist.get_world_size())
-                loss_position_mean = loss_position_sum / (len(self.train_dataloader) * dist.get_world_size())
+                loss_parent_mean = loss_parent_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_dir_mean = loss_dir_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_position_mean = loss_position_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
-                true_parent_mean = true_parent_sums / (problem_parent_sums * dist.get_world_size())
-                true_dir_mean = true_dir_sums / (problem_dir_sums * dist.get_world_size())
-                true_id_mean = true_id_sums / (problem_id_sums * dist.get_world_size())
-                true_category_mean = true_category_sums / (problem_category_sums * dist.get_world_size())
+                true_parent_mean = true_parent_sums.item() / (problem_parent_sums * dist.get_world_size())
+                true_dir_mean = true_dir_sums.item() / (problem_dir_sums * dist.get_world_size())
+                true_id_mean = true_id_sums.item() / (problem_id_sums * dist.get_world_size())
+                true_category_mean = true_category_sums.item() / (problem_category_sums * dist.get_world_size())
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE parent: {loss_parent_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
@@ -269,7 +269,7 @@ class Trainer:
                     # 체크포인트 데이터 준비
                     checkpoint = {
                         'epoch': epoch,
-                        'model_state_dict': self.transformer.state_dict(),
+                        'model_state_dict': self.transformer.module.state_dict(),
                         'optimizer_state_dict': self.optimizer.state_dict(),
                     }
 
