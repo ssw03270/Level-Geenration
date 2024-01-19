@@ -114,7 +114,7 @@ class Trainer:
         dir_list = torch.tensor(dir_list).float().to(self.device)
         pred_dir_position = torch.matmul(pred_dir, dir_list)
 
-        pred_new_position = pred_parent_position + pred_dir_position
+        pred_new_position = pred_parent_position - pred_dir_position
         pred_new_position = pred_new_position[:, :-1]
         trg_position = trg_position[:, 1:]
         mask = mask[:, 1:]
