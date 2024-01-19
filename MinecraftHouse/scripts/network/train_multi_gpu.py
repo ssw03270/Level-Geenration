@@ -60,7 +60,6 @@ class Trainer:
         Args:
         - batch_size (int): Size of each training batch.
         - max_epoch (int): Maximum number of training epochs.
-        - pad_idx (int): Padding index for sequences.
         - d_model (int): Dimension of the model.
         - n_layer (int): Number of transformer layers.
         - n_head (int): Number of multi-head attentions.
@@ -83,37 +82,36 @@ class Trainer:
         self.lr = lr
         self.local_rank = local_rank
 
-        # Set the device for training (either GPU or CPU based on availability)
+        # Initialize the distributed environment
+        torch.distributed.init_process_group(backend='nccl')
+
+        # Set the device for training
         self.device = torch.device(f'cuda:{self.local_rank}') if torch.cuda.is_available() else torch.device('cpu')
 
-        # Only the first dataset initialization will load the full dataset from disk
+        # Dataset and Dataloader
         self.train_dataset = CraftAssistDataset(data_type='train')
-        self.train_sampler = DistributedSampler(dataset=self.train_dataset, rank=self.local_rank, shuffle=True)
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size,
-                                           sampler=self.train_sampler, num_workers=8, pin_memory=True)
+        self.train_sampler = DistributedSampler(dataset=self.train_dataset, num_replicas=torch.distributed.get_world_size(), rank=self.local_rank, shuffle=True)
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, sampler=self.train_sampler, num_workers=8, pin_memory=True)
 
         # Initialize the Transformer model
-        self.transformer = Transformer(d_model, d_hidden, n_head, n_layer, dropout).to(device=self.device)
+        self.transformer = Transformer(d_model, d_hidden, n_head, n_layer, dropout).to(self.device)
         self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank])
 
-        # optimizer
+        # Optimizer and Scheduler
         param_optimizer = list(self.transformer.module.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(
-                nd in n for nd in no_decay)], 'weight_decay': 0.01},
-            {'params': [p for n, p in param_optimizer if any(
-                nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
-
         self.optimizer = AdamW(optimizer_grouped_parameters, lr=self.lr, correct_bias=False, no_deprecation_warning=True)
 
-        # scheduler
+        # Scheduler
         data_len = len(self.train_dataloader)
         num_train_steps = int(data_len / self.batch_size * self.max_epoch)
         num_warmup_steps = int(num_train_steps * 0.1)
-        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
-                                                         num_training_steps=num_train_steps)
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_train_steps)
+
 
     def position_loss(self, pred_parent, pred_dir, trg_position, mask):
         pred_parent_position = torch.matmul(pred_parent, trg_position)
