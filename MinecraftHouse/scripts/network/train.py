@@ -107,6 +107,25 @@ class Trainer:
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                          num_training_steps=num_train_steps)
 
+    def position_loss(self, pred_parent, pred_dir, trg_position, mask):
+        pred_parent_position = torch.matmul(pred_parent, trg_position)
+
+        dir_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0], [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0], [0, 1, 1], [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0], [1, 1, 1]]
+        dir_list = torch.tensor(dir_list).float().to(self.device)
+        pred_dir_position = torch.matmul(pred_dir, dir_list)
+
+        pred_new_position = pred_parent_position + pred_dir_position
+        pred_new_position = pred_new_position[:, :-1]
+        trg_position = trg_position[:, 1:]
+        mask = mask[:, 1:]
+
+        loss = F.mse_loss(pred_new_position, trg_position, reduction='none')
+        mask = mask.unsqueeze(-1)
+        mask = mask.repeat(1, 1, 3)
+        masked_loss = loss * mask.float()
+
+        return masked_loss.sum() / mask.float().sum()
+
     def train(self):
         """Training loop for the transformer model."""
         epoch_start = 0
@@ -119,6 +138,7 @@ class Trainer:
             loss_dir_sum = 0
             loss_id_sum = 0
             loss_category_sum = 0
+            loss_position_sum = 0
 
             true_parent_sums = 0
             true_dir_sums = 0
@@ -158,7 +178,8 @@ class Trainer:
                 loss_dir = cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
                 loss_id = cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss_category = cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                loss = loss_parent + loss_dir + loss_id + loss_category
+                loss_position = self.position_loss(parent_output, dir_output, position_sequence, mask)
+                loss = loss_parent + loss_dir + loss_id + loss_category + loss_position
 
                 # Backpropagation and optimization step
                 loss.backward()
@@ -169,6 +190,7 @@ class Trainer:
                 loss_dir_sum += loss_dir.detach()
                 loss_id_sum += loss_id.detach()
                 loss_category_sum += loss_category.detach()
+                loss_position_sum += loss_position.detach()
 
                 true_parent_sum, problem_parent_sum = get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
                 true_parent_sums += true_parent_sum
@@ -191,6 +213,7 @@ class Trainer:
             loss_dir_mean = loss_dir_sum / (len(self.train_dataloader))
             loss_id_mean = loss_id_sum / (len(self.train_dataloader))
             loss_category_mean = loss_category_sum / (len(self.train_dataloader))
+            loss_position_mean = loss_position_sum / (len(self.train_dataloader))
 
             true_parent_mean = true_parent_sums / problem_parent_sums
             true_dir_mean = true_dir_sums / problem_dir_sums
@@ -201,6 +224,7 @@ class Trainer:
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
+            print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss position: {loss_position_mean:.4f}")
 
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy parent: {true_parent_mean:.4f}")
             print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy dir: {true_dir_mean:.4f}")
@@ -212,6 +236,7 @@ class Trainer:
                 wandb.log({"Train ce dir": loss_dir_mean}, step=epoch + 1)
                 wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
                 wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
+                wandb.log({"Train position": loss_position_mean}, step=epoch + 1)
 
                 wandb.log({"Train accuracy parent": true_parent_mean}, step=epoch + 1)
                 wandb.log({"Train accuracy dir": true_dir_mean}, step=epoch + 1)

@@ -2,8 +2,48 @@ import pickle
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+dir_dictionary = {
+    0: [-1, -1, -1],
+    1: [-1, -1, 0],
+    2: [-1, -1, 1],
+    3: [-1, 0, -1],
+    4: [-1, 0, 0],
+    5: [-1, 0, 1],
+    6: [-1, 1, -1],
+    7: [-1, 1, 0],
+    8: [-1, 1, 1],
+    9: [0, -1, -1],
+    10: [0, -1, 0],
+    11: [0, -1, 1],
+    12: [0, 0, -1],
+    13: [0, 0, 1],
+    14: [0, 1, -1],
+    15: [0, 1, 0],
+    16: [0, 1, 1],
+    17: [1, -1, -1],
+    18: [1, -1, 0],
+    19: [1, -1, 1],
+    20: [1, 0, -1],
+    21: [1, 0, 0],
+    22: [1, 0, 1],
+    23: [1, 1, -1],
+    24: [1, 1, 0],
+    25: [1, 1, 1]
+}
+
+# dir_dictionary = {
+#     0: [0, 0, -1],
+#     1: [0, 0, 1],
+#     2: [0, -1, 0],
+#     3: [0, 1, 0],
+#     4: [-1, 0, 0],
+#     5: [1, 0, 0],
+# }
+
 def check(height_list, schematic, annotated_schematic, annotation_list):
     block_sequence = []
+    for height in height_list:
+        block_sequence.append([height.tolist(), 2, 'terrain'])
     for x in range(schematic.shape[0]):
         for y in range(schematic.shape[1]):
             for z in range(schematic.shape[2]):
@@ -11,32 +51,24 @@ def check(height_list, schematic, annotated_schematic, annotation_list):
                     block_sequence.append(
                         [[x, y, z], schematic[x, y, z], annotation_list[int(annotated_schematic[x, y, z])]])
 
-    terrain_sequence = []
-    for height in height_list:
-        terrain_sequence.append([height.tolist(), 2, 'terrain'])
-
-    input_sequence = terrain_sequence
-    output_sequence = [[0, 0]] * len(terrain_sequence)
+    input_sequence = [[[0, 0, 0], 0, 'sos']]
+    output_sequence = [[0, 0]]
 
     least_num = 0
     while len(block_sequence) > 0:
         new_input_sequence = []
         for idx, new_seq in enumerate(input_sequence):
             for block_seq in block_sequence:
-                dir_idx = 0
-                for dx in [-1, 0, 1]:
-                    for dy in [-1, 0, 1]:
-                        for dz in [-1, 0, 1]:
-                            # 자기 자신을 제외한 모든 방향
-                            if dx == 0 and dy == 0 and dz == 0:
-                                continue
-                            if [block_seq[0][0] + dx, block_seq[0][1] + dy, block_seq[0][2] + dz] == new_seq[0]:
-                                new_input_sequence.append(block_seq)
-                                block_sequence.remove(block_seq)
+                for dir_idx in range(len(dir_dictionary)):
+                    dx = dir_dictionary[dir_idx][0]
+                    dy = dir_dictionary[dir_idx][1]
+                    dz = dir_dictionary[dir_idx][2]
 
-                                output_sequence.append([idx + 1, dir_idx])
+                    if block_seq[0] == [new_seq[0][0] + dx, new_seq[0][1] + dy, new_seq[0][2] + dz]:
+                        new_input_sequence.append(block_seq)
+                        block_sequence.remove(block_seq)
 
-                            dir_idx += 1
+                        output_sequence.append([idx, dir_idx])
 
         input_sequence += new_input_sequence
 
@@ -47,6 +79,7 @@ def check(height_list, schematic, annotated_schematic, annotation_list):
             return 1, input_sequence, output_sequence
 
         least_num = len(block_sequence)
+
     return 0, input_sequence, output_sequence
 
 if __name__ == '__main__':
@@ -69,12 +102,12 @@ if __name__ == '__main__':
             count, input_sequence, output_sequence = future.result()
             fail_count += count
             if count == 0:
-                input_sequences.append(input_sequence)
-                output_sequences.append(output_sequence)
+                input_sequences.append(input_sequence[1:])
+                output_sequences.append(output_sequence[1:])
 
     print(f'fail: {fail_count}, total: {len(schematics)}')
     print(f'longest_sequence: {len(max(input_sequences, key=len))}')
 
-    with open('../../../datasets/training_data.pkl', 'wb') as f:
+    with open('../../../datasets/training_data2.pkl', 'wb') as f:
         pickle.dump({'input_sequences': input_sequences,
                      'output_sequences': output_sequences}, f)

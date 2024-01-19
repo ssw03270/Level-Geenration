@@ -43,7 +43,7 @@ dir_dictionary = {
     24: [1, 1, 0],
     25: [1, 1, 1]
 }
-
+dir_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0], [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0], [0, 1, 1], [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0], [1, 1, 1]]
 
 def create_cube(center, size=1):
     # 정육면체의 중심에서 꼭지점으로의 방향 벡터
@@ -129,6 +129,7 @@ def rendering(position_sequence, semantic_sequence):
     )
 
     fig.show()
+
 
 if __name__ == '__main__':
     # Set the argparse
@@ -228,14 +229,19 @@ if __name__ == '__main__':
                                                                                     real_block_semantic_sequence,
                                                                                     real_pad_mask_sequence)
 
+                print(parent_output.shape, real_position_sequence.shape, torch.matmul(parent_output, real_position_sequence).shape)
+                dir_list = torch.tensor(dir_list).float().to(device)
+                print(dir_output.shape, dir_list.shape, torch.matmul(dir_output, dir_list).shape)
+                parent_output = parent_output.unsqueeze(0)
                 cur_parent_idx = torch.argmax(parent_output[:, -1], dim=-1).unsqueeze(0)
                 cur_dir = torch.argmax(dir_output[:, -1], dim=-1).unsqueeze(0)
+                # print(parent_output[:, -1].cpu().detach().numpy().tolist(), cur_parent_idx, parent_output.shape)
 
                 real_dir_sequence = torch.cat((real_dir_sequence, cur_dir), dim=1)
 
                 new_dir = np.array(dir_dictionary[cur_dir.cpu().detach().numpy()[0, 0]])
-                new_position = real_position_sequence[0, cur_parent_idx.cpu().detach().numpy()[0]].cpu().detach().numpy()
-                new_position = train_dataset.restore_min_max_scaling(new_position) + new_dir
+                new_position = real_position_sequence[0, cur_parent_idx.cpu().detach().numpy()[0, 0]].cpu().detach().numpy()
+                new_position = train_dataset.restore_min_max_scaling(new_position) - new_dir
                 new_position = train_dataset.min_max_scaling(new_position)
                 new_position = torch.tensor(new_position).float()
                 new_position = new_position.to(device).unsqueeze(0).unsqueeze(0)
@@ -252,7 +258,7 @@ if __name__ == '__main__':
 
                 print(jdx, cur_block_semantic.cpu().detach().numpy()[0])
                 jdx += 1
-                if cur_block_semantic.cpu().detach().numpy()[0] == 1 or jdx > 1000:
+                if cur_block_semantic.cpu().detach().numpy()[0] == 1 or jdx > 1500:
                     break
 
             rendering(real_position_sequence, real_block_semantic_sequence)
