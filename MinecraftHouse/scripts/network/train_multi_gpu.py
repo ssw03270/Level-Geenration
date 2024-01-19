@@ -207,26 +207,26 @@ class Trainer:
                 loss_position_sum += loss_position.detach()
 
                 true_parent_sum, problem_parent_sum = get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
-                dist.all_reduce(true_parent_sum, op=dist.ReduceOp.SUM)
-                dist.all_reduce(problem_parent_sum, op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(true_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_parent_sums += true_parent_sum
                 problem_parent_sums += problem_parent_sum
 
                 true_dir_sum, problem_dir_sum = get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
-                dist.all_reduce(true_dir_sum, op=dist.ReduceOp.SUM)
-                dist.all_reduce(problem_dir_sum, op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(true_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_dir_sums += true_dir_sum
                 problem_dir_sums += problem_dir_sum
 
                 true_id_sum, problem_id_sum = get_accuracy(id_output[:, :-1].detach(), block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                dist.all_reduce(true_id_sum, op=dist.ReduceOp.SUM)
-                dist.all_reduce(problem_id_sum, op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
                 true_category_sum, problem_category_sum = get_accuracy(category_output[:, :-1].detach(), block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                dist.all_reduce(true_category_sum, op=dist.ReduceOp.SUM)
-                dist.all_reduce(problem_category_sum, op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(true_category_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_category_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_category_sums += true_category_sum
                 problem_category_sums += problem_category_sum
 
