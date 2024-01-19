@@ -80,7 +80,7 @@ class Trainer:
         self.val_epoch = val_epoch
         self.save_epoch = save_epoch
         self.save_dir_path = save_dir_path
-        self.lr = lr
+        self.lr = lr * torch.distributed.get_world_size()
         self.local_rank = local_rank
 
         # Set the device for training
