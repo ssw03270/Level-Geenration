@@ -105,11 +105,12 @@ class Trainer:
             {'params': [p for n, p in param_optimizer if any(
                 nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
+
         self.optimizer = AdamW(optimizer_grouped_parameters, lr=self.lr, correct_bias=False, no_deprecation_warning=True)
 
         # scheduler
         data_len = len(self.train_dataloader)
-        num_train_steps = int(data_len / batch_size * self.max_epoch)
+        num_train_steps = int(data_len / self.batch_size * self.max_epoch)
         num_warmup_steps = int(num_train_steps * 0.1)
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                          num_training_steps=num_train_steps)
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
     parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training.")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate used in the transformer model.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
