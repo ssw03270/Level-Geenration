@@ -224,7 +224,7 @@ category_colors = {
 }
 # Initialize a dictionary to store mesh data for each category
 
-for input_sequence in data['input_sequences'][30:40]:
+for input_sequence in data['input_sequences'][70:80]:
     category_mesh_data = {category: {'coords': []} for category in category_colors}
 
     for input_data in input_sequence:

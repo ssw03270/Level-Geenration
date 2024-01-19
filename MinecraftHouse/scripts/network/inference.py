@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 from datetime import datetime
 
+import plotly.graph_objects as go
 import numpy as np
 import random
 from tqdm import tqdm
@@ -42,6 +43,92 @@ dir_dictionary = {
     24: [1, 1, 0],
     25: [1, 1, 1]
 }
+
+
+def create_cube(center, size=1):
+    # 정육면체의 중심에서 꼭지점으로의 방향 벡터
+    dirs = np.array([[1, 1, -1],
+                     [1, -1, -1],
+                     [-1, -1, -1],
+                     [-1, 1, -1],
+                     [1, 1, 1],
+                     [1, -1, 1],
+                     [-1, -1, 1],
+                     [-1, 1, 1]])
+    # 꼭지점 계산
+    return center + size * 0.5 * dirs
+
+def create_mesh(vertices_list, category, color):
+    faces = np.array([[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [0, 1, 2, 3], [4, 5, 6, 7]])
+    quad_to_tri = lambda quad: [(quad[0], quad[1], quad[2]), (quad[2], quad[3], quad[0])]
+    vertices = []
+    i_faces = []
+    for i, cube_center in enumerate(vertices_list):
+        cube_vertices = create_cube(cube_center)
+        vertices.append(cube_vertices)
+        for quad in faces:
+            i_faces.extend(quad_to_tri(quad + 8 * i))
+
+    vertices = np.concatenate(vertices, axis=0)
+    i_faces = np.array(i_faces)
+    x, y, z = vertices[:, 0], vertices[:, 1], vertices[:, 2]
+    i, j, k = i_faces[:, 0], i_faces[:, 1], i_faces[:, 2]
+
+    mesh = go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, color=color, opacity=1, name=category, showlegend=True)
+    return mesh
+
+def rendering(position_sequence, semantic_sequence):
+    position_sequence = position_sequence.squeeze().cpu().detach().numpy()
+    position_sequence = train_dataset.restore_min_max_scaling(position_sequence)
+    semantic_sequence = semantic_sequence.squeeze().cpu().detach().numpy()
+
+    categorys = []
+    for semantic in semantic_sequence:
+        category = ''
+        if semantic == 0:
+            category = 'sos'
+        elif semantic == 1:
+            category = 'eos'
+        elif semantic == '2':
+            categorys = 'pad'
+        else:
+            category = train_dataset.sorted_block_semantic_values[semantic - 3]
+
+        categorys.append(category)
+        print(category)
+
+    category_colors = {
+        category: f'rgb({(hash(category) & 0xFF)}, {(hash(category) >> 8) & 0xFF}, {(hash(category) >> 16) & 0xFF})'
+        for category in categorys
+    }
+
+    category_mesh_data = {category: {'coords': []} for category in category_colors}
+    fig = go.Figure()
+    for category, coord in zip(categorys, position_sequence):
+        category_mesh_data[category]['coords'].append([coord[0], coord[2], coord[1]])
+
+    for category, coords in category_mesh_data.items():
+        coord = coords['coords']
+        if len(coord) == 0:
+            continue
+
+        color = category_colors[category]
+        mesh = create_mesh(coord, category, color)
+
+        fig.add_trace(mesh)
+
+    # Update the layout
+    fig.update_layout(
+        title='3D Data Visualization with Categories',
+        scene=dict(
+            xaxis_title='X Axis',
+            yaxis_title='Y Axis',
+            zaxis_title='Z Axis'
+        ),
+        showlegend=True
+    )
+
+    fig.show()
 
 if __name__ == '__main__':
     # Set the argparse
@@ -165,36 +252,33 @@ if __name__ == '__main__':
 
                 print(jdx, cur_block_semantic.cpu().detach().numpy()[0])
                 jdx += 1
-                if cur_block_semantic.cpu().detach().numpy()[0] == 1:
+                if cur_block_semantic.cpu().detach().numpy()[0] == 1 or jdx > 1000:
                     break
 
-            print(real_parent_sequence, parent_sequence)
-            print(real_dir_sequence, dir_sequence)
-            print(real_block_id_sequence[:, :-1], block_id_sequence[:, 1:])
-            print(real_block_semantic_sequence[:, :-1], block_semantic_sequence[:, 1:])
-
+            rendering(real_position_sequence, real_block_semantic_sequence)
+            break
             # Compute the losses
-            mask = real_pad_mask_sequence & real_terrain_mask_sequence
-            loss_parent = cross_entropy_loss(real_parent_sequence, parent_sequence.detach(), mask.detach())
-            loss_dir = cross_entropy_loss(real_dir_sequence, dir_sequence.detach(), mask.detach())
-            loss_id = cross_entropy_loss(real_block_id_sequence[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-            loss_category = cross_entropy_loss(real_block_semantic_sequence[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
-
-            true_parent_sum, problem_parent_sum = get_accuracy(real_parent_sequence.detach(), parent_sequence.detach(),
-                                                               mask.detach())
-            true_dir_sum, problem_dir_sum = get_accuracy(real_dir_sequence.detach(), dir_sequence.detach(), mask.detach())
-            true_id_sum, problem_id_sum = get_accuracy(real_block_id_sequence[:, :-1].detach(),
-                                                       block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-            true_category_sum, problem_category_sum = get_accuracy(real_block_semantic_sequence[:, :-1].detach(),
-                                                                   block_semantic_sequence[:, 1:].detach(),
-                                                                   mask[:, 1:].detach())
-
-            print(f"Epoch {idx + 1} - Inference Loss CE parent: {loss_parent:.4f}")
-            print(f"Epoch {idx + 1} - Inference Loss CE dir: {loss_dir:.4f}")
-            print(f"Epoch {idx + 1} - Inference Loss CE id: {loss_id:.4f}")
-            print(f"Epoch {idx + 1} - Inference Loss CE category: {loss_category:.4f}")
-
-            print(f"Epoch {idx + 1} - Inference accuracy parent: {true_parent_sum / problem_parent_sum:.4f}")
-            print(f"Epoch {idx + 1} - Inference accuracy dir: {true_dir_sum / problem_dir_sum:.4f}")
-            print(f"Epoch {idx + 1} - Inference accuracy id: {true_id_sum / problem_id_sum:.4f}")
-            print(f"Epoch {idx + 1} - Inference accuracy category: {true_category_sum / problem_category_sum:.4f}")
+            # mask = real_pad_mask_sequence & real_terrain_mask_sequence
+            # loss_parent = cross_entropy_loss(real_parent_sequence, parent_sequence.detach(), mask.detach())
+            # loss_dir = cross_entropy_loss(real_dir_sequence, dir_sequence.detach(), mask.detach())
+            # loss_id = cross_entropy_loss(real_block_id_sequence[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            # loss_category = cross_entropy_loss(real_block_semantic_sequence[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            #
+            # true_parent_sum, problem_parent_sum = get_accuracy(real_parent_sequence.detach(), parent_sequence.detach(),
+            #                                                    mask.detach())
+            # true_dir_sum, problem_dir_sum = get_accuracy(real_dir_sequence.detach(), dir_sequence.detach(), mask.detach())
+            # true_id_sum, problem_id_sum = get_accuracy(real_block_id_sequence[:, :-1].detach(),
+            #                                            block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            # true_category_sum, problem_category_sum = get_accuracy(real_block_semantic_sequence[:, :-1].detach(),
+            #                                                        block_semantic_sequence[:, 1:].detach(),
+            #                                                        mask[:, 1:].detach())
+            #
+            # print(f"Epoch {idx + 1} - Inference Loss CE parent: {loss_parent:.4f}")
+            # print(f"Epoch {idx + 1} - Inference Loss CE dir: {loss_dir:.4f}")
+            # print(f"Epoch {idx + 1} - Inference Loss CE id: {loss_id:.4f}")
+            # print(f"Epoch {idx + 1} - Inference Loss CE category: {loss_category:.4f}")
+            #
+            # print(f"Epoch {idx + 1} - Inference accuracy parent: {true_parent_sum / problem_parent_sum:.4f}")
+            # print(f"Epoch {idx + 1} - Inference accuracy dir: {true_dir_sum / problem_dir_sum:.4f}")
+            # print(f"Epoch {idx + 1} - Inference accuracy id: {true_id_sum / problem_id_sum:.4f}")
+            # print(f"Epoch {idx + 1} - Inference accuracy category: {true_category_sum / problem_category_sum:.4f}")

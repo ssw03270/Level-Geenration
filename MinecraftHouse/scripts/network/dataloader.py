@@ -41,11 +41,11 @@ class CraftAssistDataset(Dataset):
                 block_semantic_values.add(semantic)
 
         # 집합을 리스트로 변환하고 정렬
-        sorted_block_semantic_values = sorted(list(block_semantic_values))
+        self.sorted_block_semantic_values = sorted(list(block_semantic_values))
 
         # 정렬된 리스트를 사용하여 인덱스 매핑 생성
-        block_semantic_to_index = {value: idx + 3 for idx, value in enumerate(sorted_block_semantic_values)}
-        for idx, value in enumerate(sorted_block_semantic_values):
+        block_semantic_to_index = {value: idx + 3 for idx, value in enumerate(self.sorted_block_semantic_values)}
+        for idx, value in enumerate(self.sorted_block_semantic_values):
             print(value, idx+3)
 
         for input_sequence, output_sequence in zip(input_sequences, output_sequences):
