@@ -97,7 +97,7 @@ class Trainer:
         self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank])
 
         # optimizer
-        param_optimizer = list(self.transformer.named_parameters())
+        param_optimizer = list(self.transformer.module.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
             {'params': [p for n, p in param_optimizer if not any(
