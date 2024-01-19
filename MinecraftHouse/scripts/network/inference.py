@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from model import Transformer
 from dataloader import CraftAssistDataset
-from train import get_accuracy, cross_entropy_loss
+from train_single_gpu import get_accuracy, cross_entropy_loss
 
 dir_dictionary = {
     0: [-1, -1, -1],
