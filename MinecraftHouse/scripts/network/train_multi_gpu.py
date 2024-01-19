@@ -237,10 +237,10 @@ class Trainer:
                 loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_position_mean = loss_position_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
-                true_parent_mean = true_parent_sums.item() / (problem_parent_sums * dist.get_world_size())
-                true_dir_mean = true_dir_sums.item() / (problem_dir_sums * dist.get_world_size())
-                true_id_mean = true_id_sums.item() / (problem_id_sums * dist.get_world_size())
-                true_category_mean = true_category_sums.item() / (problem_category_sums * dist.get_world_size())
+                true_parent_mean = true_parent_sums.item() / (problem_parent_sums.item() * dist.get_world_size())
+                true_dir_mean = true_dir_sums.item() / (problem_dir_sums.item() * dist.get_world_size())
+                true_id_mean = true_id_sums.item() / (problem_id_sums.item() * dist.get_world_size())
+                true_category_mean = true_category_sums.item() / (problem_category_sums.item() * dist.get_world_size())
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE parent: {loss_parent_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
