@@ -96,7 +96,7 @@ class Trainer:
 
         # Initialize the Transformer model
         self.transformer = Transformer(d_model, d_hidden, n_head, n_layer, dropout).to(self.device)
-        self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank])
+        self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank], find_unused_parameters=True)
 
         # Optimizer and Scheduler
         param_optimizer = list(self.transformer.module.named_parameters())
