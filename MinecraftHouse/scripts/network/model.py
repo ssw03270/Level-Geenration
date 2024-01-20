@@ -74,6 +74,9 @@ class Transformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(block_id_sequence[:, :, 0], diagonal=1)
         mask = pad_mask_sequence & sub_mask_sequence
 
+        print(position_sequence.shape)
+        print(block_id_sequence.shape)
+        print(block_semantic_sequence.shape)
         enc_input = torch.cat((position_sequence + block_id_sequence + block_semantic_sequence), dim=-1)
         enc_output = self.encoder(enc_input, mask)
 
