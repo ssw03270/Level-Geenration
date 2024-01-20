@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
                 new_dir = np.array(dir_dictionary[cur_dir.cpu().detach().numpy()[0, 0]])
                 new_position = real_position_sequence[0, cur_parent_idx.cpu().detach().numpy()[0, 0]].cpu().detach().numpy()
-                new_position = train_dataset.restore_min_max_scaling(new_position) - new_dir
+                new_position = train_dataset.restore_min_max_scaling(new_position) + new_dir
                 new_position = train_dataset.min_max_scaling(new_position)
                 new_position = torch.tensor(new_position).float()
                 new_position = new_position.to(device).unsqueeze(0).unsqueeze(0)
