@@ -47,9 +47,9 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
         super().__init__()
 
-        self.position_encoding = nn.Linear(3, d_model)
-        self.block_id_embedding = nn.Embedding(253, d_model)
-        self.block_semantic_embedding = nn.Embedding(33 + 3, d_model)
+        self.position_encoding = nn.Linear(3, int(d_model / 2))
+        self.block_id_embedding = nn.Embedding(253, int(d_model / 4))
+        self.block_semantic_embedding = nn.Embedding(33 + 3, int(d_model / 2))
 
         self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                           d_inner=d_hidden, dropout=dropout)
@@ -74,7 +74,7 @@ class Transformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(block_id_sequence[:, :, 0], diagonal=1)
         mask = pad_mask_sequence & sub_mask_sequence
 
-        enc_input = position_sequence + block_id_sequence + block_semantic_sequence
+        enc_input = torch.cat([position_sequence + block_id_sequence + block_semantic_sequence], dim=2)
         enc_output = self.encoder(enc_input, mask)
 
         sub_output, parent_output = self.attention(enc_output, enc_output, enc_output, mask)
