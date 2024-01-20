@@ -51,10 +51,12 @@ class Transformer(nn.Module):
         self.block_id_embedding = nn.Embedding(253, int(d_model / 4))
         self.block_semantic_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
-        self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                          d_inner=d_hidden, dropout=dropout)
+        self.parent_encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
+                                                 d_inner=d_hidden, dropout=dropout)
+        self.child_encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
+                                                d_inner=d_hidden, dropout=dropout)
         self.attention = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
-        self.ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_hidden, dropout=dropout)
+
         self.dir_decoding = nn.Linear(d_model, 26)
         self.id_decoding = nn.Linear(d_model, 253)
         self.category_decoding = nn.Linear(d_model, 33 + 3)
@@ -65,7 +67,40 @@ class Transformer(nn.Module):
             torch.ones((1, len_s, len_s), device=seq.device), diagonal=diagonal)).bool()
         return subsequent_mask
 
-    def forward(self, position_sequence, block_id_sequence, block_semantic_sequence, pad_mask_sequence):
+    def select_mask_with_indices(self, mask, indices):
+        # mask shape: (batch, seq, seq)
+        # indices shape: (batch, sequence)
+
+        # Batch indices to access the correct batch
+        batch_indices = torch.arange(mask.shape[0]).unsqueeze(1).expand_as(indices)
+
+        # Using 'gather' to select the relevant mask entries
+        selected_mask = mask[batch_indices, indices, :]
+
+        return selected_mask
+
+    def calculate_distances_with_mask(self, tensor):
+        # tensor is of shape (batch, seq, xyz)
+        # Expand tensor to shape (batch, seq, 1, xyz)
+        tensor_expanded_1 = tensor.unsqueeze(2)
+
+        # Expand tensor to shape (batch, 1, seq, xyz)
+        tensor_expanded_2 = tensor.unsqueeze(1)
+
+        # Calculate differences - shape will be (batch, seq, seq, xyz)
+        differences = tensor_expanded_1 - tensor_expanded_2
+
+        # Calculate Euclidean distances - shape will be (batch, seq, seq)
+        distances = torch.sqrt(torch.sum(differences ** 2, dim=-1))
+
+        # Create a mask where distances are less than or equal to 3
+        mask = distances <= 3
+        mask.to(tensor.device)
+
+        return distances, mask
+
+    def forward(self, position_sequence, block_id_sequence, block_semantic_sequence, pad_mask_sequence,
+                parent_sequence, true_position_sequence):
         position_sequence = self.position_encoding(position_sequence)
         block_id_sequence = self.block_id_embedding(block_id_sequence)
         block_semantic_sequence = self.block_semantic_embedding(block_semantic_sequence)
@@ -75,18 +110,22 @@ class Transformer(nn.Module):
         mask = pad_mask_sequence & sub_mask_sequence
 
         enc_input = torch.cat((position_sequence, block_id_sequence, block_semantic_sequence), dim=-1)
-        enc_output = self.encoder(enc_input, mask)
+        parent_enc_output = self.parent_encoder(enc_input, mask)
 
-        sub_output, parent_output = self.attention(enc_output, enc_output, enc_output, mask)
-        sub_output = self.ffn(sub_output)
+        _, parent_output = self.attention(parent_enc_output, parent_enc_output, parent_enc_output, mask)
 
-        dir_output = self.dir_decoding(sub_output)
+        distance_sequence, distance_mask = self.calculate_distances_with_mask(true_position_sequence)
+        distance_mask = self.select_mask_with_indices(distance_mask, parent_sequence)
+        mask = mask & distance_mask
+        child_enc_output = self.child_encoder(enc_input, mask)
+
+        dir_output = self.dir_decoding(child_enc_output)
         dir_output = torch.softmax(dir_output, dim=-1)
 
-        id_output = self.id_decoding(sub_output)
+        id_output = self.id_decoding(child_enc_output)
         id_output = torch.softmax(id_output, dim=-1)
 
-        category_output = self.category_decoding(sub_output)
+        category_output = self.category_decoding(child_enc_output)
         category_output = torch.softmax(category_output, dim=-1)
 
         parent_output = parent_output.squeeze()

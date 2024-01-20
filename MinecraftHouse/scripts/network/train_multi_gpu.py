@@ -165,8 +165,10 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # Get the source and target sequences from the batch
-                position_sequence, block_id_sequence, block_semantic_sequence, \
+                true_position_sequence, position_sequence, block_id_sequence, block_semantic_sequence, \
                     dir_sequence, parent_sequence, pad_mask_sequence, terrain_mask_sequence = data
+
+                true_position_sequence = true_position_sequence.to(device=self.device)
                 position_sequence = position_sequence.to(device=self.device)
                 block_id_sequence = block_id_sequence.to(device=self.device)
                 block_semantic_sequence = block_semantic_sequence.to(device=self.device)
@@ -179,7 +181,9 @@ class Trainer:
                 parent_output, dir_output, id_output, category_output = self.transformer(position_sequence,
                                                                                          block_id_sequence,
                                                                                          block_semantic_sequence,
-                                                                                         pad_mask_sequence)
+                                                                                         pad_mask_sequence,
+                                                                                         parent_sequence,
+                                                                                         true_position_sequence)
 
                 # Compute the losses
                 mask = pad_mask_sequence & terrain_mask_sequence
@@ -188,7 +192,7 @@ class Trainer:
                 loss_id = cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss_category = cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss_position = self.position_loss(parent_output, dir_output, position_sequence, mask)
-                loss = loss_parent + loss_dir + loss_id + loss_category
+                loss = loss_parent + loss_dir + loss_id + loss_category + loss_position
 
                 # Backpropagation and optimization step
                 loss.backward()

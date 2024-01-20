@@ -87,12 +87,14 @@ class CraftAssistDataset(Dataset):
 
         self.min_val = None
         self.max_val = None
+        self.true_position_sequences = self.position_sequences
         self.position_sequences = self.min_max_scaling(np.array(self.position_sequences))
 
         self.data_length = len(self.position_sequences)
         print(f'{data_type}: {self.data_length}')
 
     def __getitem__(self, idx):
+        true_position_sequence = self.true_position_sequences[idx]
         position_sequence = self.position_sequences[idx]
         block_id_sequence = self.block_id_sequences[idx]
         block_semantic_sequence = self.block_semantic_sequences[idx]
@@ -101,6 +103,7 @@ class CraftAssistDataset(Dataset):
         pad_mask_sequence = self.pad_mask_sequences[idx]
         terrain_mask_sequence = self.terrain_mask_sequences[idx]
 
+        true_position_sequence = torch.tensor(true_position_sequence, dtype=torch.long)
         position_sequence = torch.tensor(position_sequence, dtype=torch.float32)
         block_id_sequence = torch.tensor(block_id_sequence, dtype=torch.long)
         block_semantic_sequence = torch.tensor(block_semantic_sequence, dtype=torch.long)
@@ -109,7 +112,8 @@ class CraftAssistDataset(Dataset):
         pad_mask_sequence = torch.tensor(pad_mask_sequence, dtype=torch.bool)
         terrain_mask_sequence = torch.tensor(terrain_mask_sequence, dtype=torch.bool)
 
-        return position_sequence, block_id_sequence, block_semantic_sequence, parent_sequence, dir_sequence, pad_mask_sequence, terrain_mask_sequence
+        return true_position_sequence, position_sequence, block_id_sequence, \
+            block_semantic_sequence, parent_sequence, dir_sequence, pad_mask_sequence, terrain_mask_sequence
 
     def __len__(self):
         return self.data_length
