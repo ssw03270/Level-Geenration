@@ -220,6 +220,7 @@ if __name__ == '__main__':
             print(real_parent_sequence.shape, parent_sequence.shape)
             print(real_pad_mask_sequence.shape, pad_mask_sequence.shape)
             print(real_terrain_mask_sequence.shape, terrain_mask_sequence.shape)
+            print(real_position_sequence)
 
             jdx = 0
             while True:
@@ -229,9 +230,7 @@ if __name__ == '__main__':
                                                                                     real_block_semantic_sequence,
                                                                                     real_pad_mask_sequence)
 
-                print(parent_output.shape, real_position_sequence.shape, torch.matmul(parent_output, real_position_sequence).shape)
                 dir_list = torch.tensor(dir_list).float().to(device)
-                print(dir_output.shape, dir_list.shape, torch.matmul(dir_output, dir_list).shape)
                 parent_output = parent_output.unsqueeze(0)
                 cur_parent_idx = torch.argmax(parent_output[:, -1], dim=-1).unsqueeze(0)
                 cur_dir = torch.argmax(dir_output[:, -1], dim=-1).unsqueeze(0)
