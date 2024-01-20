@@ -53,7 +53,7 @@ class Transformer(nn.Module):
 
         self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                           d_inner=d_hidden, dropout=dropout)
-        self.attention = MultiHeadAttention(n_head=1, d_model=d_model, dropout=dropout)
+        self.attention = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
         self.ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_hidden, dropout=dropout)
         self.dir_decoding = nn.Linear(d_model, 26)
         self.id_decoding = nn.Linear(d_model, 253)
