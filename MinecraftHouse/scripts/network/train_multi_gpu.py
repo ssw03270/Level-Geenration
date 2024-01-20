@@ -188,7 +188,7 @@ class Trainer:
                 loss_id = cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss_category = cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
                 loss_position = self.position_loss(parent_output, dir_output, position_sequence, mask)
-                loss = loss_parent + loss_dir + loss_id + loss_category + loss_position
+                loss = loss_parent + loss_dir + loss_id + loss_category
 
                 # Backpropagation and optimization step
                 loss.backward()
