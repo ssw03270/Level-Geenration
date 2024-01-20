@@ -49,7 +49,7 @@ class Transformer(nn.Module):
 
         self.position_encoding = nn.Linear(3, int(d_model / 2))
         self.block_id_embedding = nn.Embedding(253, int(d_model / 4))
-        self.block_semantic_embedding = nn.Embedding(33 + 3, int(d_model / 2))
+        self.block_semantic_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
         self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                           d_inner=d_hidden, dropout=dropout)
