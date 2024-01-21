@@ -19,22 +19,17 @@ class DecoderLayer(nn.Module):
         super(DecoderLayer, self).__init__()
         self.use_additional_global_attn = use_additional_global_attn
         if self.use_additional_global_attn:
-            self.local_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
-            self.category_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
-            self.id_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
-        else:
-            self.self_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
+            self.add_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
+
+        self.self_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         self.cross_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         self.pos_ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_inner, dropout=dropout)
 
-    def forward(self, enc_output, dec_input, enc_mask=None, dec_mask=None, local_mask=None, category_mask=None, id_mask=None):
+    def forward(self, enc_output, dec_input, dec_mask=None, enc_mask=None):
+        dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
         if self.use_additional_global_attn:
-            local_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=local_mask)
-            category_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=category_mask)
-            id_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=id_mask)
-            dec_output = local_output + category_output + id_output
-        else:
-            dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
+            add_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=enc_mask)
+            dec_output += add_output
 
         dec_output, _ = self.cross_attn(dec_output, enc_output, enc_output, mask=enc_mask)
         dec_output = self.pos_ffn(dec_output)
