@@ -67,7 +67,7 @@ class CraftAssistDataset(Dataset):
             block_category_sequence = [block_category_to_index[value] for value in block_category_sequence]
             next_category_sequence = block_category_sequence[1:]
             block_category_sequence = [0] + block_category_sequence + [1] + [2] * pad_length
-            next_category_sequence = next_category_sequence + [1] + [2] * (pad_length + 1)
+            next_category_sequence = next_category_sequence + [1] + [2] * (pad_length + 2)
             pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
             terrain_mask_sequence = [False] + terrain_mask_sequence + [False] + [False] * pad_length
 
