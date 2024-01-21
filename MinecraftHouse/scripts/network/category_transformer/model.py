@@ -51,9 +51,7 @@ class CategoryTransformer(nn.Module):
         mask = pad_mask_sequence & sub_mask_sequence
 
         enc_input = torch.cat((position_sequence, block_id_sequence, block_semantic_sequence), dim=-1)
-        parent_enc_output = self.encoder(enc_input, mask)
-
-        enc_output, _ = self.attention(parent_enc_output, parent_enc_output, parent_enc_output, mask)
+        enc_output = self.encoder(enc_input, mask)
 
         category_output = self.category_decoding(enc_output)
         category_output = torch.softmax(category_output, dim=-1)
