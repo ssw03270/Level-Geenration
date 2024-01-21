@@ -130,7 +130,7 @@ class Transformer(nn.Module):
         bert_output = bert_output['last_hidden_state']
 
         pad_mask_sequence = pad_mask_sequence.unsqueeze(1)
-        sub_mask_sequence = self.get_subsequent_mask(id_sequence[:, :, 0], diagonal=1)
+        sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
         category_output = self.category_decoder(bert_output, position_sequence, id_sequence, category_sequence, global_mask)
