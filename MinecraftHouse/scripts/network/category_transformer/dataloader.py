@@ -17,13 +17,19 @@ class CraftAssistDataset(Dataset):
 
         if data_type == 'train':
             self.file_path = '../../../datasets/training_data2.pkl'
+            self.text_path = '../../datasets/training_data2_text.pkl'
         else:
             self.file_path = '../../../datasets/training_data2.pkl'
+            self.text_path = '../../datasets/training_data2_text.pkl'
+
+        self.text_sequences = []
 
         self.position_sequences = []
-        self.block_id_sequences = []
-        self.block_category_sequences = []
+        self.id_sequences = []
+        self.category_sequences = []
+
         self.next_category_sequences = []
+
         self.pad_mask_sequences = []
         self.terrain_mask_sequences = []
 
@@ -31,24 +37,28 @@ class CraftAssistDataset(Dataset):
             data = pickle.load(f)
             input_sequences = data['input_sequences']
 
-        block_category_values = set()
+        with open(self.text_path, 'rb') as f:
+            data = pickle.load(f)
+            text_sequences = data['texts']
+
+        category_values = set()
         for input_sequence in input_sequences:
             for input_data in input_sequence:
                 category = vocab_mapping_function(input_data[2])
-                block_category_values.add(category)
+                category_values.add(category)
 
         # 집합을 리스트로 변환하고 정렬
-        self.sorted_block_category_values = sorted(list(block_category_values))
+        self.sorted_category_values = sorted(list(category_values))
 
         # 정렬된 리스트를 사용하여 인덱스 매핑 생성
-        block_category_to_index = {value: idx + 3 for idx, value in enumerate(self.sorted_block_category_values)}
-        for idx, value in enumerate(self.sorted_block_category_values):
+        category_to_index = {value: idx + 3 for idx, value in enumerate(self.sorted_category_values)}
+        for idx, value in enumerate(self.sorted_category_values):
             print(value, idx+3)
 
-        for input_sequence in input_sequences:
+        for input_sequence, text_sequence in zip(input_sequences, text_sequences):
             position_sequence = []
-            block_id_sequence = []
-            block_category_sequence = []
+            id_sequence = []
+            category_sequence = []
             terrain_mask_sequence = []
 
             data_length = len(input_sequence)
@@ -57,24 +67,30 @@ class CraftAssistDataset(Dataset):
 
             for input_data in input_sequence:
                 position_sequence.append(input_data[0])
-                block_id_sequence.append(input_data[1])
-                block_category_sequence.append(vocab_mapping_function(input_data[2]))
+                id_sequence.append(input_data[1])
+                category_sequence.append(vocab_mapping_function(input_data[2]))
                 terrain_mask_sequence.append(input_data[2] != 'terrain')
 
             pad_length = 2048 - 2 - data_length
+            category_sequence = [category_to_index[value] for value in category_sequence]
+
+            next_category_sequence = category_sequence[1:] + [1] + [2] * (pad_length + 2)
+
             position_sequence = [[0, 0, 0]] + position_sequence + [[0, 0, 0]] + [[0, 0, 0]] * pad_length
-            block_id_sequence = [0] + block_id_sequence + [0] + [0] * pad_length
-            block_category_sequence = [block_category_to_index[value] for value in block_category_sequence]
-            next_category_sequence = block_category_sequence[1:]
-            block_category_sequence = [0] + block_category_sequence + [1] + [2] * pad_length
-            next_category_sequence = next_category_sequence + [1] + [2] * (pad_length + 2)
+            id_sequence = [0] + id_sequence + [0] + [0] * pad_length
+            category_sequence = [0] + category_sequence + [1] + [2] * pad_length
+
             pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
             terrain_mask_sequence = [False] + terrain_mask_sequence + [False] + [False] * pad_length
 
+            self.text_sequences.append(text_sequence)
+
             self.position_sequences.append(position_sequence)
-            self.block_id_sequences.append(block_id_sequence)
-            self.block_category_sequences.append(block_category_sequence)
+            self.id_sequences.append(id_sequence)
+            self.category_sequences.append(category_sequence)
+
             self.next_category_sequences.append(next_category_sequence)
+
             self.pad_mask_sequences.append(pad_mask_sequence)
             self.terrain_mask_sequences.append(terrain_mask_sequence)
 
@@ -86,22 +102,28 @@ class CraftAssistDataset(Dataset):
         print(f'{data_type}: {self.data_length}')
 
     def __getitem__(self, idx):
+        text_sequence = self.text_sequences[idx]
+
         position_sequence = self.position_sequences[idx]
-        block_id_sequence = self.block_id_sequences[idx]
-        block_category_sequence = self.block_category_sequences[idx]
+        id_sequence = self.id_sequences[idx]
+        category_sequence = self.category_sequences[idx]
+
         next_category_sequence = self.next_category_sequences[idx]
+
         pad_mask_sequence = self.pad_mask_sequences[idx]
         terrain_mask_sequence = self.terrain_mask_sequences[idx]
 
         position_sequence = torch.tensor(position_sequence, dtype=torch.float32)
-        block_id_sequence = torch.tensor(block_id_sequence, dtype=torch.long)
-        block_category_sequence = torch.tensor(block_category_sequence, dtype=torch.long)
+        id_sequence = torch.tensor(id_sequence, dtype=torch.long)
+        category_sequence = torch.tensor(category_sequence, dtype=torch.long)
+
         next_category_sequence = torch.tensor(next_category_sequence, dtype=torch.long)
+
         pad_mask_sequence = torch.tensor(pad_mask_sequence, dtype=torch.bool)
         terrain_mask_sequence = torch.tensor(terrain_mask_sequence, dtype=torch.bool)
 
-        return position_sequence, block_id_sequence, block_category_sequence, next_category_sequence, \
-            pad_mask_sequence, terrain_mask_sequence
+        return position_sequence, id_sequence, category_sequence, next_category_sequence, \
+            pad_mask_sequence, terrain_mask_sequence, text_sequence
 
     def __len__(self):
         return self.data_length

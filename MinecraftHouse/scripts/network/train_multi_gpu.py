@@ -178,7 +178,10 @@ class Trainer:
                                                                                                id_sequence,
                                                                                                category_sequence,
                                                                                                real_position_sequence,
-                                                                                               pad_mask_sequence)
+                                                                                               pad_mask_sequence,
+                                                                                               next_category_sequence,
+                                                                                               next_id_sequence,
+                                                                                               next_parent_sequence)
 
                 # Compute the losses
                 mask = pad_mask_sequence & terrain_mask_sequence

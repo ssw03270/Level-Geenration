@@ -9,6 +9,8 @@ import torch.distributed as dist
 from datetime import datetime
 import torch.nn as nn
 
+from transformers import BertTokenizer
+
 import numpy as np
 import random
 from tqdm import tqdm
@@ -100,6 +102,8 @@ class Trainer:
         self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank],
                                                                find_unused_parameters=True)
 
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
         # Optimizer and Scheduler
         param_optimizer = list(self.transformer.module.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -136,8 +140,11 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # Get the source and target sequences from the batch
-                position_sequence, block_id_sequence, block_category_sequence, \
-                    next_category_sequence, pad_mask_sequence, terrain_mask_sequence = data
+                position_sequence, id_sequence, category_sequence, next_category_sequence, \
+                    pad_mask_sequence, terrain_mask_sequence, text_sequence = data
+
+                text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
+                text_sequence = text_sequence.to(device=self.device)
 
                 position_sequence = position_sequence.to(device=self.device)
                 block_id_sequence = block_id_sequence.to(device=self.device)
@@ -147,9 +154,10 @@ class Trainer:
                 terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
-                category_output = self.transformer(position_sequence,
-                                                   block_id_sequence,
-                                                   block_category_sequence,
+                category_output = self.transformer(text_sequence,
+                                                   position_sequence,
+                                                   id_sequence,
+                                                   category_sequence,
                                                    pad_mask_sequence)
 
                 # Compute the losses
@@ -202,11 +210,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a transformer with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=512, help="Batch size for training.")
-    parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
-    parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--d_hidden", type=int, default=512, help="Batch size for training.")
+    parser.add_argument("--n_head", type=int, default=4, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate used in the transformer model.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
