@@ -286,8 +286,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a transformer with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=512, help="Batch size for training.")
-    parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=768, help="Batch size for training.")
+    parser.add_argument("--d_hidden", type=int, default=3072, help="Batch size for training.")
     parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size for training.")
