@@ -147,8 +147,8 @@ class Trainer:
                 text_sequence = text_sequence.to(device=self.device)
 
                 position_sequence = position_sequence.to(device=self.device)
-                block_id_sequence = block_id_sequence.to(device=self.device)
-                block_category_sequence = block_category_sequence.to(device=self.device)
+                id_sequence = id_sequence.to(device=self.device)
+                category_sequence = category_sequence.to(device=self.device)
                 next_category_sequence = next_category_sequence.to(device=self.device)
                 pad_mask_sequence = pad_mask_sequence.to(device=self.device)
                 terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
