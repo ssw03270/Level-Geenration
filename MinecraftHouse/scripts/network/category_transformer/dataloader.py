@@ -88,8 +88,8 @@ class CraftAssistDataset(Dataset):
     def __getitem__(self, idx):
         position_sequence = self.position_sequences[idx]
         block_id_sequence = self.block_id_sequences[idx]
-        block_category_sequence = self.next_category_sequences[idx]
-        next_category_sequence = self.block_category_sequences[idx]
+        block_category_sequence = self.block_category_sequences[idx]
+        next_category_sequence = self.next_category_sequences[idx]
         pad_mask_sequence = self.pad_mask_sequences[idx]
         terrain_mask_sequence = self.terrain_mask_sequences[idx]
 
