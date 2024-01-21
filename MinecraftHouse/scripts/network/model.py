@@ -130,12 +130,12 @@ class Transformer(nn.Module):
         bert_mask = text_sequence['attention_mask']
         bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
         bert_output = bert_output['last_hidden_state']
+        bert_mask = bert_mask.unsqueeze(1)
 
         pad_mask_sequence = pad_mask_sequence.unsqueeze(1)
         sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
-        print(bert_output.shape, position_sequence.shape, id_sequence.shape, category_sequence.shape, global_mask.shape, bert_mask.shape)
         category_output = self.category_decoder(bert_output, position_sequence, id_sequence, category_sequence, global_mask, bert_mask)
         decoded_category = self.category_decoding(category_output)
         decoded_category = torch.softmax(decoded_category, dim=-1)
