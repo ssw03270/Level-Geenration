@@ -17,10 +17,10 @@ class CraftAssistDataset(Dataset):
 
         if data_type == 'train':
             self.file_path = '../../../datasets/training_data2.pkl'
-            self.text_path = '../../datasets/training_data2_text.pkl'
+            self.text_path = '../../../datasets/training_data2_text.pkl'
         else:
             self.file_path = '../../../datasets/training_data2.pkl'
-            self.text_path = '../../datasets/training_data2_text.pkl'
+            self.text_path = '../../../datasets/training_data2_text.pkl'
 
         self.text_sequences = []
 
