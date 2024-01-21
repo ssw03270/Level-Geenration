@@ -143,21 +143,21 @@ class Transformer(nn.Module):
         category_mask = self.get_index_mask(category_sequence, decoded_category_index)
         category_mask = category_mask & global_mask
 
-        id_output = self.id_decoder(category_output, position_sequence, id_sequence, category_sequence, category_mask, global_mask)
+        id_output = self.id_decoder(category_output, position_sequence, id_sequence, category_sequence, global_mask, global_mask)
         decoded_id = self.id_decoding(id_output)
         decoded_id = torch.softmax(decoded_id, dim=-1)
         decoded_id_index = torch.argmax(decoded_id, dim=-1)
         id_mask = self.get_index_mask(id_sequence, decoded_id_index)
         id_mask = id_mask & global_mask
 
-        parent_output = self.parent_decoder(id_output, position_sequence, id_sequence, category_sequence, id_mask, global_mask)
+        parent_output = self.parent_decoder(id_output, position_sequence, id_sequence, category_sequence, global_mask, global_mask)
         _, decoded_parent = self.parent_decoding(parent_output, parent_output, parent_output, mask=global_mask)
         decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
         local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3)
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
         local_mask = local_mask & global_mask
 
-        direction_output = self.direction_decoder(parent_output, position_sequence, id_sequence, category_sequence, local_mask, global_mask)
+        direction_output = self.direction_decoder(parent_output, position_sequence, id_sequence, category_sequence, global_mask, global_mask)
         decoded_direction = self.direction_decoding(direction_output)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
