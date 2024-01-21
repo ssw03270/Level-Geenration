@@ -125,9 +125,9 @@ class Trainer:
         """Training loop for the transformer model."""
         epoch_start = 0
 
-        if self.use_wandb:
-            if self.local_rank == 0:
-                wandb.watch(self.transformer.module, log='all')
+        # if self.use_wandb:
+        #     if self.local_rank == 0:
+        #         wandb.watch(self.transformer.module, log='all')
 
         for epoch in range(epoch_start, self.max_epoch):
             loss_parent_sum = torch.Tensor([0.0]).to(self.device)
