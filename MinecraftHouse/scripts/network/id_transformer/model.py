@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 from layer import EncoderLayer
@@ -31,7 +30,7 @@ class IDTransformer(nn.Module):
         self.block_category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
         self.encoder = TrnasformerEncoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                                 d_inner=d_hidden, dropout=dropout)
+                                          d_inner=d_hidden, dropout=dropout)
 
         self.id_decoding = nn.Linear(d_model, 250 + 3)
 
@@ -54,7 +53,8 @@ class IDTransformer(nn.Module):
 
         return mask
 
-    def forward(self, position_sequence, block_id_sequence, block_category_sequence, next_category_sequences, pad_mask_sequence):
+    def forward(self, position_sequence, block_id_sequence, block_category_sequence, next_category_sequences,
+                pad_mask_sequence):
         category_mask = self.get_category_mask(block_category_sequence, next_category_sequences)
 
         position_sequence = self.position_encoding(position_sequence)

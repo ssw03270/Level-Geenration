@@ -9,6 +9,8 @@ import torch.distributed as dist
 from datetime import datetime
 import torch.nn as nn
 
+from transformers import BertTokenizer, BertModel
+
 import numpy as np
 import random
 from tqdm import tqdm
@@ -48,6 +50,7 @@ def get_accuracy(pred, trg, mask):
     total = mask.sum().item()
 
     return correct, total
+
 
 class Trainer:
     def __init__(self, d_model, d_hidden, n_head, n_layer,
@@ -96,7 +99,10 @@ class Trainer:
 
         # Initialize the Transformer model
         self.transformer = Transformer(d_model, d_hidden, n_head, n_layer, dropout).to(self.device)
-        self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank], find_unused_parameters=True)
+        self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[self.local_rank],
+                                                               find_unused_parameters=True)
+
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
         # Optimizer and Scheduler
         param_optimizer = list(self.transformer.module.named_parameters())
@@ -114,25 +120,6 @@ class Trainer:
         num_warmup_steps = int(num_train_steps * 0.1)
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                          num_training_steps=num_train_steps)
-
-    def position_loss(self, pred_parent, pred_dir, trg_position, mask):
-        pred_parent_position = torch.matmul(pred_parent, trg_position)
-
-        dir_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0], [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0], [0, 1, 1], [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0], [1, 1, 1]]
-        dir_list = torch.tensor(dir_list).float().to(self.device)
-        pred_dir_position = torch.matmul(pred_dir, dir_list)
-
-        pred_new_position = pred_parent_position + pred_dir_position
-        pred_new_position = pred_new_position[:, :-1]
-        trg_position = trg_position[:, 1:]
-        mask = mask[:, 1:]
-
-        loss = F.mse_loss(pred_new_position, trg_position, reduction='none')
-        mask = mask.unsqueeze(-1)
-        mask = mask.repeat(1, 1, 3)
-        masked_loss = loss * mask.float()
-
-        return masked_loss.sum() / mask.float().sum()
 
     def train(self):
         """Training loop for the transformer model."""
@@ -165,34 +152,41 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # Get the source and target sequences from the batch
-                true_position_sequence, position_sequence, block_id_sequence, block_semantic_sequence, \
-                    dir_sequence, parent_sequence, pad_mask_sequence, terrain_mask_sequence = data
+                position_sequence, id_sequence, category_sequence, next_category_sequence, next_id_sequence, \
+                    next_parent_sequence, next_direction_sequence, real_position_sequence, pad_mask_sequence, \
+                    terrain_mask_sequence, text_sequence = data
 
-                true_position_sequence = true_position_sequence.to(device=self.device)
+                text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
+                text_sequence = text_sequence.to(device=self.device)
+
                 position_sequence = position_sequence.to(device=self.device)
-                block_id_sequence = block_id_sequence.to(device=self.device)
-                block_semantic_sequence = block_semantic_sequence.to(device=self.device)
-                dir_sequence = dir_sequence.to(device=self.device)
-                parent_sequence = parent_sequence.to(device=self.device)
+                id_sequence = id_sequence.to(device=self.device)
+                category_sequence = category_sequence.to(device=self.device)
+
+                next_category_sequence = next_category_sequence.to(device=self.device)
+                next_id_sequence = next_id_sequence.to(device=self.device)
+                next_parent_sequence = next_parent_sequence.to(device=self.device)
+                next_direction_sequence = next_direction_sequence.to(device=self.device)
+
+                real_position_sequence = real_position_sequence.to(device=self.device)
                 pad_mask_sequence = pad_mask_sequence.to(device=self.device)
                 terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
-                parent_output, dir_output, id_output, category_output = self.transformer(position_sequence,
-                                                                                         block_id_sequence,
-                                                                                         block_semantic_sequence,
-                                                                                         pad_mask_sequence,
-                                                                                         parent_sequence,
-                                                                                         true_position_sequence)
+                category_output, id_output, parent_output, direction_output = self.transformer(text_sequence,
+                                                                                               position_sequence,
+                                                                                               id_sequence,
+                                                                                               category_sequence,
+                                                                                               real_position_sequence,
+                                                                                               pad_mask_sequence)
 
                 # Compute the losses
                 mask = pad_mask_sequence & terrain_mask_sequence
-                loss_parent = cross_entropy_loss(parent_output, parent_sequence.detach(), mask.detach())
-                loss_dir = cross_entropy_loss(dir_output, dir_sequence.detach(), mask.detach())
-                loss_id = cross_entropy_loss(id_output[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                loss_category = cross_entropy_loss(category_output[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                loss_position = self.position_loss(parent_output, dir_output, position_sequence, mask)
-                loss = loss_parent + loss_dir + loss_id + loss_category + loss_position
+                loss_category = cross_entropy_loss(category_output, next_category_sequence.detach(), mask.detach())
+                loss_id = cross_entropy_loss(id_output, next_id_sequence.detach(), mask.detach())
+                loss_parent = cross_entropy_loss(parent_output, next_parent_sequence.detach(), mask.detach())
+                loss_dir = cross_entropy_loss(parent_output, next_direction_sequence.detach(), mask.detach())
+                loss = loss_parent + loss_dir + loss_id + loss_category
 
                 # Backpropagation and optimization step
                 loss.backward()
@@ -203,72 +197,75 @@ class Trainer:
                 dist.all_reduce(loss_dir, op=dist.ReduceOp.SUM)
                 dist.all_reduce(loss_id, op=dist.ReduceOp.SUM)
                 dist.all_reduce(loss_category, op=dist.ReduceOp.SUM)
-                dist.all_reduce(loss_position, op=dist.ReduceOp.SUM)
 
                 loss_parent_sum += loss_parent.detach()
                 loss_dir_sum += loss_dir.detach()
                 loss_id_sum += loss_id.detach()
                 loss_category_sum += loss_category.detach()
-                loss_position_sum += loss_position.detach()
 
-                true_parent_sum, problem_parent_sum = get_accuracy(parent_output.detach(), parent_sequence.detach(), mask.detach())
-                dist.all_reduce(torch.tensor(true_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
-                dist.all_reduce(torch.tensor(problem_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
-                true_parent_sums += true_parent_sum
-                problem_parent_sums += problem_parent_sum
-
-                true_dir_sum, problem_dir_sum = get_accuracy(dir_output.detach(), dir_sequence.detach(), mask.detach())
-                dist.all_reduce(torch.tensor(true_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
-                dist.all_reduce(torch.tensor(problem_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
-                true_dir_sums += true_dir_sum
-                problem_dir_sums += problem_dir_sum
-
-                true_id_sum, problem_id_sum = get_accuracy(id_output[:, :-1].detach(), block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-                dist.all_reduce(torch.tensor(true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
-                dist.all_reduce(torch.tensor(problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
-                true_id_sums += true_id_sum
-                problem_id_sums += problem_id_sum
-
-                true_category_sum, problem_category_sum = get_accuracy(category_output[:, :-1].detach(), block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
+                true_category_sum, problem_category_sum = get_accuracy(category_output.detach(),
+                                                                       next_category_sequence.detach(),
+                                                                       mask[:, 1:].detach())
                 dist.all_reduce(torch.tensor(true_category_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_category_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_category_sums += true_category_sum
                 problem_category_sums += problem_category_sum
 
+                true_id_sum, problem_id_sum = get_accuracy(id_output.detach(),
+                                                           next_id_sequence.detach(),
+                                                           mask[:, 1:].detach())
+                dist.all_reduce(torch.tensor(true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                true_id_sums += true_id_sum
+                problem_id_sums += problem_id_sum
+
+                true_parent_sum, problem_parent_sum = get_accuracy(parent_output.detach(),
+                                                                   next_parent_sequence.detach(),
+                                                                   mask.detach())
+                dist.all_reduce(torch.tensor(true_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_parent_sum).to(self.device), op=dist.ReduceOp.SUM)
+                true_parent_sums += true_parent_sum
+                problem_parent_sums += problem_parent_sum
+
+                true_dir_sum, problem_dir_sum = get_accuracy(direction_output.detach(),
+                                                             next_direction_sequence.detach(),
+                                                             mask.detach())
+                dist.all_reduce(torch.tensor(true_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
+                true_dir_sums += true_dir_sum
+                problem_dir_sums += problem_dir_sum
+
             if self.local_rank == 0:
+                loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_parent_mean = loss_parent_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_dir_mean = loss_dir_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
-                loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
-                loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
-                loss_position_mean = loss_position_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
+                true_category_mean = true_category_sums.item() / (problem_category_sums.item())
+                true_id_mean = true_id_sums.item() / (problem_id_sums.item())
                 true_parent_mean = true_parent_sums.item() / (problem_parent_sums.item())
                 true_dir_mean = true_dir_sums.item() / (problem_dir_sums.item())
-                true_id_mean = true_id_sums.item() / (problem_id_sums.item())
-                true_category_mean = true_category_sums.item() / (problem_category_sums.item())
 
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE parent: {loss_parent_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss position: {loss_position_mean:.4f}")
 
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy parent: {true_parent_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy dir: {true_dir_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
 
                 if self.use_wandb:
+                    wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
+                    wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
                     wandb.log({"Train ce parent": loss_parent_mean}, step=epoch + 1)
                     wandb.log({"Train ce dir": loss_dir_mean}, step=epoch + 1)
-                    wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
-                    wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
-                    wandb.log({"Train position": loss_position_mean}, step=epoch + 1)
 
+                    wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
+                    wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy parent": true_parent_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy dir": true_dir_mean}, step=epoch + 1)
-                    wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
-                    wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
 
                 if (epoch + 1) % self.save_epoch == 0:
                     # 체크포인트 데이터 준비
@@ -293,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
     parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
+    parser.add_argument("--batch_size", type=int, default=2, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate used in the transformer model.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
