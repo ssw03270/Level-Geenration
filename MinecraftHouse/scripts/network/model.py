@@ -100,7 +100,7 @@ class Transformer(nn.Module):
         return distances, mask
 
     def forward(self, position_sequence, block_id_sequence, block_semantic_sequence, pad_mask_sequence,
-                parent_sequence, true_position_sequence):
+                parent_sequence, true_position_sequence, inference_mode=False):
         position_sequence = self.position_encoding(position_sequence)
         block_id_sequence = self.block_id_embedding(block_id_sequence)
         block_semantic_sequence = self.block_semantic_embedding(block_semantic_sequence)
@@ -113,6 +113,12 @@ class Transformer(nn.Module):
         parent_enc_output = self.parent_encoder(enc_input, mask)
 
         _, parent_output = self.attention(parent_enc_output, parent_enc_output, parent_enc_output, mask)
+
+        if inference_mode:
+            parent_output = parent_output[0]
+            parent = torch.argmax(parent_output, dim=-1)
+            parent = parent[:, -1].unsqueeze(0)
+            parent_sequence = torch.cat((parent_sequence[:, 1:], parent), dim=-1)
 
         distance_sequence, distance_mask = self.calculate_distances_with_mask(true_position_sequence)
         distance_mask = self.select_mask_with_indices(distance_mask, parent_sequence)
