@@ -25,7 +25,7 @@ class PositionalEncoding(nn.Module):
         return self.pos_table[:, :x.size(1)].clone().detach()
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, n_layer, n_head, d_model, d_inner, dropout, use_additional_global_attn=False):
+    def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
         super(TransformerDecoder, self).__init__()
 
         self.position_encoding = nn.Linear(3, int(d_model / 2))
@@ -35,8 +35,7 @@ class TransformerDecoder(nn.Module):
         # self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
         self.layer_stack = nn.ModuleList([
-            DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout,
-                         use_additional_global_attn=use_additional_global_attn)
+            DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout)
             for _ in range(n_layer)
         ])
 
