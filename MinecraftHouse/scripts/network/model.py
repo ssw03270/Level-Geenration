@@ -135,6 +135,7 @@ class Transformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
+        print(bert_output.shape, position_sequence.shape, id_sequence.shape, category_sequence.shape, global_mask.shape, bert_mask.shape)
         category_output = self.category_decoder(bert_output, position_sequence, id_sequence, category_sequence, global_mask, bert_mask)
         decoded_category = self.category_decoding(category_output)
         decoded_category = torch.softmax(decoded_category, dim=-1)
