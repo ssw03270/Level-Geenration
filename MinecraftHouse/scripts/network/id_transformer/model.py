@@ -55,6 +55,8 @@ class IDTransformer(nn.Module):
         return mask
 
     def forward(self, position_sequence, block_id_sequence, block_category_sequence, next_category_sequences, pad_mask_sequence):
+        category_mask = self.get_category_mask(block_category_sequence, next_category_sequences)
+
         position_sequence = self.position_encoding(position_sequence)
         block_id_sequence = self.block_id_embedding(block_id_sequence)
         block_category_sequence = self.block_category_embedding(block_category_sequence)
@@ -63,7 +65,6 @@ class IDTransformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(block_id_sequence[:, :, 0], diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
-        category_mask = self.get_category_mask(block_category_sequence, next_category_sequences)
         category_mask = category_mask & global_mask
 
         enc_input = torch.cat((position_sequence, block_id_sequence, block_category_sequence), dim=-1)
