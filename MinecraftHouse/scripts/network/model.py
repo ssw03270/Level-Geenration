@@ -157,7 +157,7 @@ class Transformer(nn.Module):
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
         local_mask = local_mask & global_mask
 
-        direction_output = self.dir_decoder(parent_output, position_sequence, id_sequence, category_sequence, local_mask, global_mask)
+        direction_output = self.direction_decoder(parent_output, position_sequence, id_sequence, category_sequence, local_mask, global_mask)
         decoded_direction = self.direction_decoding(direction_output)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
