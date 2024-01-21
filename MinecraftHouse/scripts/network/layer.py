@@ -29,9 +29,9 @@ class DecoderLayer(nn.Module):
 
     def forward(self, enc_output, dec_input, enc_mask=None, dec_mask=None, local_mask=None, category_mask=None, id_mask=None):
         if self.use_additional_global_attn:
-            local_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=local_mask)
-            category_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=category_mask)
-            id_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=id_mask)
+            local_output, _ = self.local_attn(dec_input, dec_input, dec_input, mask=local_mask)
+            category_output, _ = self.category_attn(dec_input, dec_input, dec_input, mask=category_mask)
+            id_output, _ = self.id_attn(dec_input, dec_input, dec_input, mask=id_mask)
             dec_output = local_output + category_output + id_output
         else:
             dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
