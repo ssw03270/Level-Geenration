@@ -15,8 +15,11 @@ class EncoderLayer(nn.Module):
         return enc_output
 
 class DecoderLayer(nn.Module):
-    def __init__(self, d_model, d_inner, n_head, dropout):
+    def __init__(self, d_model, d_inner, n_head, dropout, use_additional_global_attn=False):
         super(DecoderLayer, self).__init__()
+        self.use_additional_global_attn = use_additional_global_attn
+        if self.use_additional_global_attn:
+            self.add_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
 
         self.self_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         self.cross_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
@@ -24,6 +27,10 @@ class DecoderLayer(nn.Module):
 
     def forward(self, enc_output, dec_input, dec_mask=None, enc_mask=None):
         dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
+        if self.use_additional_global_attn:
+            add_output, _ = self.add_attn(dec_input, dec_input, dec_input, mask=enc_mask)
+            dec_output += add_output
+
         dec_output, _ = self.cross_attn(dec_output, enc_output, enc_output, mask=enc_mask)
         dec_output = self.pos_ffn(dec_output)
 

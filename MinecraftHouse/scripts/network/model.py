@@ -47,7 +47,7 @@ class TrnasformerEncoder(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
+    def __init__(self, n_layer, n_head, d_model, d_inner, dropout, use_additional_global_attn=False):
         super(TransformerDecoder, self).__init__()
 
         self.position_encoding = nn.Linear(3, int(d_model / 2))
@@ -57,7 +57,8 @@ class TransformerDecoder(nn.Module):
         # self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
         self.layer_stack = nn.ModuleList([
-            DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout)
+            DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout,
+                         use_additional_global_attn=use_additional_global_attn)
             for _ in range(n_layer)
         ])
 
@@ -83,11 +84,11 @@ class Transformer(nn.Module):
         self.category_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                                    d_inner=d_hidden, dropout=dropout)
         self.id_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                             d_inner=d_hidden, dropout=dropout)
+                                             d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
         self.parent_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                                 d_inner=d_hidden, dropout=dropout)
+                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
         self.direction_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                                    d_inner=d_hidden, dropout=dropout)
+                                                    d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
 
         self.category_decoding = nn.Linear(d_model, 33 + 3)
         self.id_decoding = nn.Linear(d_model, 253)
