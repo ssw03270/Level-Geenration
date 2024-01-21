@@ -90,6 +90,7 @@ class Transformer(nn.Module):
         self.direction_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                                     d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
 
+        self.bert_encoding = nn.Linear(768, d_model)
         self.category_decoding = nn.Linear(d_model, 33 + 3)
         self.id_decoding = nn.Linear(d_model, 253)
         self.parent_decoding = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
@@ -131,6 +132,7 @@ class Transformer(nn.Module):
         bert_mask = text_sequence['attention_mask']
         bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
         bert_output = bert_output['last_hidden_state']
+        bert_output = self.bert_encoding(bert_output)
         bert_mask = bert_mask.unsqueeze(1)
 
         pad_mask_sequence = pad_mask_sequence.unsqueeze(1)
