@@ -63,8 +63,8 @@ class TransformerDecoder(nn.Module):
 
     def forward(self, enc_input, position_sequence, id_sequence, category_sequence, dec_mask):
         position_sequence = self.position_encoding(position_sequence)
-        id_sequence = self.block_id_embedding(id_sequence)
-        category_sequence = self.block_category_embedding(category_sequence)
+        id_sequence = self.id_embedding(id_sequence)
+        category_sequence = self.category_embedding(category_sequence)
 
         dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
         dec_output = self.dropout(dec_input)
