@@ -205,7 +205,7 @@ class Trainer:
 
                 true_category_sum, problem_category_sum = get_accuracy(category_output.detach(),
                                                                        next_category_sequence.detach(),
-                                                                       mask[:, 1:].detach())
+                                                                       mask.detach())
                 dist.all_reduce(torch.tensor(true_category_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_category_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_category_sums += true_category_sum
@@ -213,7 +213,7 @@ class Trainer:
 
                 true_id_sum, problem_id_sum = get_accuracy(id_output.detach(),
                                                            next_id_sequence.detach(),
-                                                           mask[:, 1:].detach())
+                                                           mask.detach())
                 dist.all_reduce(torch.tensor(true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_id_sums += true_id_sum
