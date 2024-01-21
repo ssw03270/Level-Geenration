@@ -61,7 +61,7 @@ class TransformerDecoder(nn.Module):
             for _ in range(n_layer)
         ])
 
-    def forward(self, enc_input, position_sequence, id_sequence, category_sequence, dec_mask):
+    def forward(self, enc_input, position_sequence, id_sequence, category_sequence, dec_mask, enc_mask):
         position_sequence = self.position_encoding(position_sequence)
         id_sequence = self.id_embedding(id_sequence)
         category_sequence = self.category_embedding(category_sequence)
@@ -70,7 +70,7 @@ class TransformerDecoder(nn.Module):
         dec_output = self.dropout(dec_input)
 
         for dec_layer in self.layer_stack:
-            dec_output = dec_layer(enc_input, dec_output, dec_mask)
+            dec_output = dec_layer(enc_input, dec_output, dec_mask, enc_mask)
 
         return dec_output
 
@@ -126,35 +126,37 @@ class Transformer(nn.Module):
 
     def forward(self, text_sequence, position_sequence, id_sequence, category_sequence, real_position_sequence,
                 pad_mask_sequence):
-        bert_output = self.bert_encoder(**text_sequence)
+        bert_input = text_sequence['input_ids']
+        bert_mask = text_sequence['attention_mask']
+        bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
         bert_output = bert_output['last_hidden_state']
 
         pad_mask_sequence = pad_mask_sequence.unsqueeze(1)
         sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
-        category_output = self.category_decoder(bert_output, position_sequence, id_sequence, category_sequence, global_mask)
+        category_output = self.category_decoder(bert_output, position_sequence, id_sequence, category_sequence, global_mask, bert_mask)
         decoded_category = self.category_decoding(category_output)
         decoded_category = torch.softmax(decoded_category, dim=-1)
         decoded_category_index = torch.argmax(decoded_category, dim=-1)
         category_mask = self.get_index_mask(category_sequence, decoded_category_index)
         category_mask = category_mask & global_mask
 
-        id_output = self.id_decoder(bert_output, position_sequence, id_sequence, category_sequence, category_mask)
+        id_output = self.id_decoder(bert_output, position_sequence, id_sequence, category_sequence, category_mask, global_mask)
         decoded_id = self.id_decoding(id_output)
         decoded_id = torch.softmax(decoded_id, dim=-1)
         decoded_id_index = torch.argmax(decoded_id, dim=-1)
         id_mask = self.get_index_mask(id_sequence, decoded_id_index)
         id_mask = id_mask & global_mask
 
-        parent_output = self.parent_decoder(bert_output, position_sequence, id_sequence, category_sequence, id_mask)
+        parent_output = self.parent_decoder(bert_output, position_sequence, id_sequence, category_sequence, id_mask, global_mask)
         _, decoded_parent = self.parent_decoding(parent_output, parent_output, parent_output, mask=global_mask)
         decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
         local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3)
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
         local_mask = local_mask & global_mask
 
-        direction_output = self.dir_decoder(bert_output, position_sequence, id_sequence, category_sequence, local_mask)
+        direction_output = self.dir_decoder(bert_output, position_sequence, id_sequence, category_sequence, local_mask, global_mask)
         decoded_direction = self.direction_decoding(direction_output)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 

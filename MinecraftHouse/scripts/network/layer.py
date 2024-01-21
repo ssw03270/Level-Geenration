@@ -22,9 +22,9 @@ class DecoderLayer(nn.Module):
         self.cross_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         self.pos_ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_inner, dropout=dropout)
 
-    def forward(self, enc_output, dec_input, mask=None):
-        dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=mask)
-        dec_output, _ = self.cross_attn(dec_output, enc_output, enc_output, mask=mask)
+    def forward(self, enc_output, dec_input, dec_mask=None, enc_mask=None):
+        dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
+        dec_output, _ = self.cross_attn(dec_output, enc_output, enc_output, mask=enc_mask)
         dec_output = self.pos_ffn(dec_output)
 
         return dec_output
