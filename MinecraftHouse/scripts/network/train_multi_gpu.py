@@ -154,7 +154,7 @@ class Trainer:
                 # Get the source and target sequences from the batch
                 position_sequence, id_sequence, category_sequence, next_category_sequence, next_id_sequence, \
                     next_parent_sequence, next_direction_sequence, real_position_sequence, pad_mask_sequence, \
-                    terrain_mask_sequence, text_sequence = data
+                    text_sequence = data
 
                 text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
                 text_sequence = text_sequence.to(device=self.device)
@@ -170,7 +170,6 @@ class Trainer:
 
                 real_position_sequence = real_position_sequence.to(device=self.device)
                 pad_mask_sequence = pad_mask_sequence.to(device=self.device)
-                terrain_mask_sequence = terrain_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
                 category_output, id_output, parent_output, direction_output = self.transformer(text_sequence,
@@ -184,7 +183,7 @@ class Trainer:
                                                                                                next_parent_sequence)
 
                 # Compute the losses
-                mask = pad_mask_sequence & terrain_mask_sequence
+                mask = pad_mask_sequence
                 loss_category = cross_entropy_loss(category_output, next_category_sequence.detach(), mask.detach())
                 loss_id = cross_entropy_loss(id_output, next_id_sequence.detach(), mask.detach())
                 loss_parent = cross_entropy_loss(parent_output, next_parent_sequence.detach(), mask.detach())
