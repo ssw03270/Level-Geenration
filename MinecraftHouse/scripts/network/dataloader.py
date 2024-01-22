@@ -75,8 +75,8 @@ class CraftAssistDataset(Dataset):
             if data_length > 2040:
                 continue
 
-            for coords_data, id_data, category_data, parent_data, direction_data, text_data \
-                    in zip(coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence, direction_sequence, text_sequence):
+            for coords_data, id_data, category_data, parent_data, direction_data \
+                    in zip(coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence, direction_sequence):
                 position_sequence.append(coords_data)
                 id_sequence.append(id_data)
                 category_sequence.append(category_data)
@@ -99,7 +99,7 @@ class CraftAssistDataset(Dataset):
             pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
 
             self.text_sequences.append(text_sequence)
-            print(len(position_sequence))
+
             self.position_sequences.append(position_sequence)
             self.id_sequences.append(id_sequence)
             self.category_sequences.append(category_sequence)
