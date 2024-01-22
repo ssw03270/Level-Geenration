@@ -5,6 +5,33 @@ import os
 import pickle
 from tqdm import tqdm
 
+dir_dict = {(-1, -1, -1): 0,
+            (-1, -1, 0): 1,
+            (-1, -1, 1): 2,
+            (-1, 0, -1): 3,
+            (-1, 0, 0): 4,
+            (-1, 0, 1): 5,
+            (-1, 1, -1): 6,
+            (-1, 1, 0): 7,
+            (-1, 1, 1): 8,
+            (0, -1, -1): 9,
+            (0, -1, 0): 10,
+            (0, -1, 1): 11,
+            (0, 0, -1): 12,
+            (0, 0, 1): 13,
+            (0, 1, -1): 14,
+            (0, 1, 0): 15,
+            (0, 1, 1): 16,
+            (1, -1, -1): 17,
+            (1, -1, 0): 18,
+            (1, -1, 1): 19,
+            (1, 0, -1): 20,
+            (1, 0, 0): 21,
+            (1, 0, 1): 22,
+            (1, 1, -1): 23,
+            (1, 1, 0): 24,
+            (1, 1, 1): 25}
+
 class CraftAssistDataset(Dataset):
     def __init__(self, data_type='train'):
         super(CraftAssistDataset, self).__init__()
@@ -60,10 +87,11 @@ class CraftAssistDataset(Dataset):
         # 정렬된 리스트를 사용하여 인덱스 매핑 생성
         category_to_index = {value: idx + 3 for idx, value in enumerate(self.sorted_category_values)}
         for idx, value in enumerate(self.sorted_category_values):
-            print(value, idx+3)
+            print(value, idx + 3)
 
         for coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence, direction_sequence, text_sequence \
-                in zip(coords_sequences, id_sequences, category_sequences, parent_sequences, direction_sequences, text_sequences):
+                in zip(coords_sequences, id_sequences, category_sequences, parent_sequences, direction_sequences,
+                       text_sequences):
             position_sequence = []
             id_sequence = []
             category_sequence = []
@@ -76,13 +104,14 @@ class CraftAssistDataset(Dataset):
                 continue
 
             for coords_data, id_data, category_data, parent_data, direction_data \
-                    in zip(coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence, direction_sequence):
+                    in zip(coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence,
+                           direction_sequence):
                 position_sequence.append(coords_data)
                 id_sequence.append(id_data)
                 category_sequence.append(category_data)
 
                 next_parent_sequence.append(parent_data)
-                next_dir_sequence.append(direction_data)
+                next_dir_sequence.append(dir_dict[direction_data])
 
             pad_length = 2048 - 2 - data_length
             category_sequence = [category_to_index[value] for value in category_sequence]

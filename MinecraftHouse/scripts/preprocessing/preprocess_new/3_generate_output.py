@@ -4,7 +4,7 @@ from tqdm import tqdm
 def find_single_adjacent_coord(coords):
     def get_direction(coord1, coord2):
         dx, dy, dz = coord2[0] - coord1[0], coord2[1] - coord1[1], coord2[2] - coord1[2]
-        return [dx, dy, dz]
+        return (dx, dy, dz)
 
     def is_adjacent(coord1, coord2):
         dx, dy, dz = abs(coord1[0] - coord2[0]), abs(coord1[1] - coord2[1]), abs(coord1[2] - coord2[2])
