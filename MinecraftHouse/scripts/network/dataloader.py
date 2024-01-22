@@ -74,7 +74,7 @@ class CraftAssistDataset(Dataset):
             data_length = len(coords_sequence)
             if data_length > 2040:
                 continue
-
+            print(len(coords_sequence), len(id_sequence), len(category_sequence), len(parent_sequence), len(direction_sequence), len(text_sequence))
             for coords_data, id_data, category_data, parent_data, direction_data, text_data \
                     in zip(coords_sequence, id_sequence, category_sequence, parent_sequence, direction_sequence, text_sequence):
                 position_sequence.append(coords_data)
