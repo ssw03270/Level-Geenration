@@ -30,7 +30,8 @@ dir_dict = {(-1, -1, -1): 0,
             (1, 0, 1): 22,
             (1, 1, -1): 23,
             (1, 1, 0): 24,
-            (1, 1, 1): 25}
+            (1, 1, 1): 25,
+            (0, 0, 0): 26}
 
 class CraftAssistDataset(Dataset):
     def __init__(self, data_type='train'):

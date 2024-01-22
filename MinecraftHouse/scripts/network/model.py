@@ -97,7 +97,7 @@ class Transformer(nn.Module):
 
         self.category_decoding = nn.Linear(d_model, 33 + 3)
         self.id_decoding = nn.Linear(d_model, 253)
-        self.direction_decoding = nn.Linear(d_model, 26)
+        self.direction_decoding = nn.Linear(d_model, 27)
 
     def get_index_mask(self, category_sequence, next_category_sequence):
         a_expanded = category_sequence.unsqueeze(2)
