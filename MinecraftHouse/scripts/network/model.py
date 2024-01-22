@@ -83,6 +83,9 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
         super().__init__()
         self.bert_encoder = BertModel.from_pretrained('bert-base-uncased')
+        for param in self.bert_encoder.parameters():
+            param.requires_grad = False
+
         self.bert_encoding = nn.Linear(768, d_model)
 
         self.parent_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
@@ -90,9 +93,10 @@ class Transformer(nn.Module):
         self.block_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
 
+        self.parent_decoding = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
+
         self.category_decoding = nn.Linear(d_model, 33 + 3)
         self.id_decoding = nn.Linear(d_model, 253)
-        self.parent_decoding = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
         self.direction_decoding = nn.Linear(d_model, 26)
 
     def get_index_mask(self, category_sequence, next_category_sequence):
@@ -140,9 +144,12 @@ class Transformer(nn.Module):
 
         parent_output = self.parent_decoder(bert_output, position_sequence, id_sequence, category_sequence,
                                             enc_mask=bert_mask, dec_mask=global_mask)
-        parent_output, decoded_parent = self.parent_decoding(parent_output, parent_output, parent_output,
-                                                             mask=global_mask)
-        decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
+        _, decoded_parent = self.parent_decoding(parent_output, parent_output, parent_output, mask=global_mask)
+
+        if self.training:
+            decoded_parent_index = next_parent_sequence
+        else:
+            decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
 
         local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3)
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
@@ -156,8 +163,8 @@ class Transformer(nn.Module):
         id_mask = self.select_mask_with_indices(id_mask, decoded_parent_index)
         id_mask = id_mask & global_mask
 
-        block_output = self.block_decoder(parent_output, position_sequence, id_sequence, category_sequence,
-                                          enc_mask=global_mask, category_mask=category_mask,
+        block_output = self.block_decoder(bert_output, position_sequence, id_sequence, category_sequence,
+                                          enc_mask=bert_mask, category_mask=category_mask,
                                           id_mask=id_mask, local_mask=local_mask)
 
         decoded_category = self.category_decoding(block_output)
