@@ -11,7 +11,7 @@ def find_single_adjacent_coord(coords):
         return dx <= 1 and dy <= 1 and dz <= 1
 
     parent_indices = [0] * len(coords)  # Initialize with -1 to indicate no parent
-    parent_directions = [[0, 0, 0]] * len(coords)
+    parent_directions = [(0, 0, 0)] * len(coords)
 
     for i in range(1, len(coords)):  # Start from the second coordinate
         for j in range(i - 1, -1, -1):
