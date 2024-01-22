@@ -92,6 +92,7 @@ class CraftAssistDataset(Dataset):
             next_parent_sequence = [0] + next_parent_sequence + [0] + [0] * pad_length
             next_dir_sequence = [0] + next_dir_sequence + [0] + [0] * pad_length
 
+            print(len(position_sequence), pad_length)
             position_sequence = [[0, 0, 0]] + position_sequence + [[0, 0, 0]] + [[0, 0, 0]] * pad_length
             id_sequence = [0] + id_sequence + [0] + [0] * pad_length
             category_sequence = [0] + category_sequence + [1] + [2] * pad_length
