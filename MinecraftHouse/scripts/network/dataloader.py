@@ -80,8 +80,8 @@ class CraftAssistDataset(Dataset):
                 id_sequence.append(input_data[1])
                 category_sequence.append(vocab_mapping_function(input_data[2]))
 
-                next_parent_sequence.append(output_data[1])
-                next_dir_sequence.append(output_data[0])
+                next_parent_sequence.append(output_data[0])
+                next_dir_sequence.append(output_data[1])
 
                 terrain_mask_sequence.append(input_data[2] != 'terrain')
 
