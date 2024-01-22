@@ -71,8 +71,6 @@ class CraftAssistDataset(Dataset):
             next_parent_sequence = []
             next_dir_sequence = []
 
-            terrain_mask_sequence = []
-
             data_length = len(coords_sequence)
             if data_length > 2040:
                 continue
@@ -101,7 +99,7 @@ class CraftAssistDataset(Dataset):
             pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
 
             self.text_sequences.append(text_sequence)
-
+            print(position_sequence)
             self.position_sequences.append(position_sequence)
             self.id_sequences.append(id_sequence)
             self.category_sequences.append(category_sequence)
