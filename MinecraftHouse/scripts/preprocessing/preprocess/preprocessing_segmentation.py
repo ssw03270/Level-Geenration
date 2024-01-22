@@ -4,8 +4,6 @@ import pickle
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from plot_house import plot
-
 def bfs_3d(array):
     rows, cols, depths = array.shape
     visited = np.zeros_like(array, dtype=bool)
