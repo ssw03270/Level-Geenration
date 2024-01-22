@@ -111,6 +111,7 @@ class CraftAssistDataset(Dataset):
                 category_sequence.append(category_data)
 
                 next_parent_sequence.append(parent_data)
+                print(direction_data)
                 next_dir_sequence.append(dir_dict[direction_data])
 
             pad_length = 2048 - 2 - data_length
