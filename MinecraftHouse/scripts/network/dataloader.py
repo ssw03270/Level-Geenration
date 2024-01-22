@@ -53,6 +53,7 @@ class CraftAssistDataset(Dataset):
         self.position_sequences = []
         self.id_sequences = []
         self.category_sequences = []
+        self.direction_sequences = []
 
         self.next_category_sequences = []
         self.next_id_sequences = []
@@ -96,6 +97,7 @@ class CraftAssistDataset(Dataset):
             position_sequence = []
             id_sequence = []
             category_sequence = []
+            dir_sequence = []
 
             next_parent_sequence = []
             next_dir_sequence = []
@@ -116,6 +118,7 @@ class CraftAssistDataset(Dataset):
 
             pad_length = 2048 - 2 - data_length
             category_sequence = [category_to_index[value] for value in category_sequence]
+            dir_sequence = [0] + [0] + next_dir_sequence + [0] * pad_length
 
             next_category_sequence = category_sequence[1:] + [1] + [2] * (pad_length + 2)
             next_id_sequence = id_sequence[1:] + [0] + [0] * (pad_length + 2)
@@ -130,6 +133,7 @@ class CraftAssistDataset(Dataset):
 
             self.text_sequences.append(text_sequence)
 
+            self.direction_sequences.append(dir_sequence)
             self.position_sequences.append(position_sequence)
             self.id_sequences.append(id_sequence)
             self.category_sequences.append(category_sequence)
@@ -152,6 +156,7 @@ class CraftAssistDataset(Dataset):
     def __getitem__(self, idx):
         text_sequence = self.text_sequences[idx]
 
+        direction_sequence = self.direction_sequences[idx]
         position_sequence = self.position_sequences[idx]
         id_sequence = self.id_sequences[idx]
         category_sequence = self.category_sequences[idx]
@@ -164,6 +169,7 @@ class CraftAssistDataset(Dataset):
         real_position_sequence = self.real_position_sequences[idx]
         pad_mask_sequence = self.pad_mask_sequences[idx]
 
+        direction_sequence = torch.tensor(direction_sequence, dtype=torch.long)
         position_sequence = torch.tensor(position_sequence, dtype=torch.float32)
         id_sequence = torch.tensor(id_sequence, dtype=torch.long)
         category_sequence = torch.tensor(category_sequence, dtype=torch.long)
@@ -176,9 +182,9 @@ class CraftAssistDataset(Dataset):
         real_position_sequence = torch.tensor(real_position_sequence, dtype=torch.long)
         pad_mask_sequence = torch.tensor(pad_mask_sequence, dtype=torch.bool)
 
-        return position_sequence, id_sequence, category_sequence, next_category_sequence, next_id_sequence, \
-            next_parent_sequence, next_direction_sequence, real_position_sequence, pad_mask_sequence, \
-            text_sequence
+        return direction_sequence, position_sequence, id_sequence, category_sequence, next_category_sequence, \
+            next_id_sequence, next_parent_sequence, next_direction_sequence, real_position_sequence, \
+            pad_mask_sequence, text_sequence
 
     def __len__(self):
         return self.data_length

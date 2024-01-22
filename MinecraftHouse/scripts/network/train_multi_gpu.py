@@ -152,13 +152,14 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # Get the source and target sequences from the batch
-                position_sequence, id_sequence, category_sequence, next_category_sequence, next_id_sequence, \
-                    next_parent_sequence, next_direction_sequence, real_position_sequence, pad_mask_sequence, \
-                    text_sequence = data
+                direction_sequence, position_sequence, id_sequence, category_sequence, next_category_sequence, \
+                    next_id_sequence, next_parent_sequence, next_direction_sequence, real_position_sequence, \
+                    pad_mask_sequence, text_sequence = data
 
                 text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
                 text_sequence = text_sequence.to(device=self.device)
 
+                direction_sequence = direction_sequence.to(device=self.device)
                 position_sequence = position_sequence.to(device=self.device)
                 id_sequence = id_sequence.to(device=self.device)
                 category_sequence = category_sequence.to(device=self.device)
@@ -173,6 +174,7 @@ class Trainer:
 
                 # Get the model's predictions
                 category_output, id_output, parent_output, direction_output = self.transformer(text_sequence,
+                                                                                               direction_sequence,
                                                                                                position_sequence,
                                                                                                id_sequence,
                                                                                                category_sequence,

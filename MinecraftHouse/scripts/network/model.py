@@ -50,7 +50,8 @@ class TransformerDecoder(nn.Module):
     def __init__(self, n_layer, n_head, d_model, d_inner, dropout, use_additional_global_attn=False):
         super(TransformerDecoder, self).__init__()
 
-        self.position_encoding = nn.Linear(3, int(d_model / 2))
+        self.dir_embedding = nn.Embedding(27, int(d_model / 4))
+        self.position_encoding = nn.Linear(3, int(d_model / 4))
         self.id_embedding = nn.Embedding(253, int(d_model / 4))
         self.category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
@@ -62,13 +63,14 @@ class TransformerDecoder(nn.Module):
             for _ in range(n_layer)
         ])
 
-    def forward(self, enc_input, position_sequence, id_sequence, category_sequence,
+    def forward(self, enc_input, direction_sequence, position_sequence, id_sequence, category_sequence,
                 enc_mask, dec_mask=None, local_mask=None, category_mask=None, id_mask=None):
+        direction_sequence = self.dir_embedding(direction_sequence)
         position_sequence = self.position_encoding(position_sequence)
         id_sequence = self.id_embedding(id_sequence)
         category_sequence = self.category_embedding(category_sequence)
 
-        dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
+        dec_input = torch.cat((direction_sequence, position_sequence, id_sequence, category_sequence), dim=-1)
         dec_output = self.dropout(dec_input)
 
         for dec_layer in self.layer_stack:
@@ -129,8 +131,9 @@ class Transformer(nn.Module):
         mask.to(tensor.device)
         return mask
 
-    def forward(self, text_sequence, position_sequence, id_sequence, category_sequence, real_position_sequence,
-                pad_mask_sequence, next_category_sequence, next_id_sequence, next_parent_sequence):
+    def forward(self, text_sequence, direction_sequence, position_sequence, id_sequence, category_sequence,
+                real_position_sequence, pad_mask_sequence, next_category_sequence, next_id_sequence,
+                next_parent_sequence):
         bert_input = text_sequence['input_ids']
         bert_mask = text_sequence['attention_mask']
         bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
@@ -142,7 +145,7 @@ class Transformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
-        parent_output = self.parent_decoder(bert_output, position_sequence, id_sequence, category_sequence,
+        parent_output = self.parent_decoder(bert_output, direction_sequence, position_sequence, id_sequence, category_sequence,
                                             enc_mask=bert_mask, dec_mask=global_mask)
         _, decoded_parent = self.parent_decoding(parent_output, parent_output, parent_output, mask=global_mask)
 
@@ -163,7 +166,7 @@ class Transformer(nn.Module):
         id_mask = self.select_mask_with_indices(id_mask, decoded_parent_index)
         id_mask = id_mask & global_mask
 
-        block_output = self.block_decoder(bert_output, position_sequence, id_sequence, category_sequence,
+        block_output = self.block_decoder(bert_output, direction_sequence, position_sequence, id_sequence, category_sequence,
                                           enc_mask=bert_mask, category_mask=category_mask,
                                           id_mask=id_mask, local_mask=local_mask)
 
