@@ -153,7 +153,7 @@ class Transformer(nn.Module):
                 cx, cy, cz = center_position
 
                 for m in range(seq_length):
-                    if mask[b, s, m]:
+                    if not mask[b, s, m]:
                         position = real_position_sequence[b, m]
                         category = category_sequence[b, m]
                         id = id_sequence[b, m]
