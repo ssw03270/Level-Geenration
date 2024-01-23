@@ -203,8 +203,7 @@ class Transformer(nn.Module):
         return id_grid, category_grid
 
     def forward(self, text_sequence, position_sequence, id_sequence, category_sequence,
-                real_position_sequence, pad_mask_sequence, next_category_sequence, next_id_sequence,
-                next_parent_sequence):
+                real_position_sequence, pad_mask_sequence, next_parent_sequence):
 
         batch_size = position_sequence.shape[0]
         seq_length = position_sequence.shape[1]
