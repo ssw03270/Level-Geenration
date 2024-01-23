@@ -158,8 +158,6 @@ class Transformer(nn.Module):
 
         differences = torch.abs(tensor_expanded_1 - tensor_expanded_2)
         max_distances = torch.max(differences, dim=-1).values
-        print(max_distances)
-        print(torch.min(differences, dim=-1).values)
 
         mask = max_distances <= distance
         mask.to(tensor.device)
@@ -191,8 +189,10 @@ class Transformer(nn.Module):
 
                         x, y, z = position
                         x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
-                        id_grid[b, s, x, y, z] = id
-                        category_grid[b, s, x, y, z] = category
+
+                        if 0 <= x < voxel_size and 0 <= y < voxel_size and 0 <= z < voxel_size:
+                            id_grid[b, s, x, y, z] = id
+                            category_grid[b, s, x, y, z] = category
 
         id_grid = torch.tensor(id_grid, dtype=torch.long).to(device)
         category_grid = torch.tensor(category_grid, dtype=torch.long).to(device)
