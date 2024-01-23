@@ -43,6 +43,7 @@ def cross_entropy_loss(pred, trg, mask):
 
 
 def get_accuracy(pred, trg, mask):
+    pred = pred.reshape(mask.shape)
     # 가장 높은 확률을 갖는 클래스 인덱스를 얻음
     pred = torch.argmax(pred, dim=-1)
     # 정확도 계산
