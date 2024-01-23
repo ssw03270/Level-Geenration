@@ -27,7 +27,7 @@ if __name__ == '__main__':
         for id, category in zip(reorder_id_sequence, reorder_category_sequence):
             category_name = category
             try:
-                block_name = id_dictionary[id].replace('minecraft:', '').replace('_block', '').replace('_', ' ') + ' block'
+                block_name = id_dictionary[id].replace('minecraft:', '').replace('_block', '') + '_block'
             except:
                 block_name = 'undetermined'
 
