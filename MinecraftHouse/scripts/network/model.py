@@ -202,7 +202,7 @@ class Transformer(nn.Module):
         print(real_position_sequence[0])
         print(category_sequence[0])
         print(id_sequence[0])
-        print(self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=3)[0, 0])
+        print(self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=4)[0, 0])
         print('----')
         category_mask = self.get_index_mask(category_sequence, category_sequence)
         category_mask = self.select_mask_with_indices(category_mask, decoded_parent_index)
