@@ -140,10 +140,10 @@ class Transformer(nn.Module):
         seq_length = real_position_sequence.shape[1]
         device = real_position_sequence.device
 
-        real_position_sequence = real_position_sequence.device.cpu().detach().numpy()
-        category_sequence = category_sequence.device.cpu().detach().numpy()
-        id_sequence = id_sequence.device.cpu().detach().numpy()
-        mask = mask.device.cpu().detach().numpy()
+        real_position_sequence = real_position_sequence.cpu().detach().numpy()
+        category_sequence = category_sequence.cpu().detach().numpy()
+        id_sequence = id_sequence.cpu().detach().numpy()
+        mask = mask.cpu().detach().numpy()
 
         voxel_size = 2 * distance + 1
         voxel_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size, 2))
