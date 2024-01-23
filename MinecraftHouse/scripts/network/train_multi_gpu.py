@@ -174,7 +174,6 @@ class Trainer:
 
                 # Get the model's predictions
                 category_output, id_output, parent_output, direction_output = self.transformer(text_sequence,
-                                                                                               direction_sequence,
                                                                                                position_sequence,
                                                                                                id_sequence,
                                                                                                category_sequence,
