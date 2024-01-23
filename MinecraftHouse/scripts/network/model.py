@@ -227,13 +227,11 @@ class Transformer(nn.Module):
         else:
             decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
 
-        category_mask = self.get_index_mask(category_sequence, category_sequence)
+        category_mask = self.get_index_mask(category_sequence, category_sequence) & global_mask
         category_mask = self.select_mask_with_indices(category_mask, decoded_parent_index)
-        category_mask = category_mask & global_mask
 
-        id_mask = self.get_index_mask(id_sequence, id_sequence)
+        id_mask = self.get_index_mask(id_sequence, id_sequence) & global_mask
         id_mask = self.select_mask_with_indices(id_mask, decoded_parent_index)
-        id_mask = id_mask & global_mask
 
         attention_output = self.block_decoder(bert_output, direction_sequence, position_sequence, id_sequence, category_sequence,
                                           enc_mask=bert_mask, category_mask=category_mask,
