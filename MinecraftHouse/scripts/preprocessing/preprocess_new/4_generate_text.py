@@ -23,28 +23,34 @@ if __name__ == '__main__':
     output_texts = []
     for reorder_id_sequence, reorder_category_sequence in zip(tqdm(reorder_id_sequences), reorder_category_sequences):
         input_texts = []
+        input_dict = {}
         for id, category in zip(reorder_id_sequence, reorder_category_sequence):
             category_name = category
             try:
-                block_name = id_dictionary[id].replace('minecraft:', '').replace('_block', '').replace('_', ' ') + ' blocks'
+                block_name = id_dictionary[id].replace('minecraft:', '').replace('_block', '').replace('_', ' ') + ' block'
             except:
                 block_name = 'undetermined'
-            input_text = f'<{category_name}s> made of <{block_name}>'
-            if input_text not in input_texts and 'terrain' not in input_text:
-                input_texts.append(input_text)
+
+            if category_name not in input_dict:
+                input_dict[category_name] = []
+            if block_name not in input_dict[category_name]:
+                input_dict[category_name].append(block_name)
 
         n_block = len(reorder_id_sequence)
-        output_text = f'This house is composed of <{n_block}> blocks. '
-        output_text = output_text + 'This house consists of'
-        for idx, input_text in enumerate(input_texts):
-            if idx == 0:
-                output_text += f' {input_text}'
-            elif idx == len(input_texts) - 1:
-                output_text += f' and {input_text}'
-            else:
-                output_text += f', {input_text}'
+        output_text = f'This house is composed of almost <{n_block}> blocks. This house consists of '
 
+        input_dict = sorted(input_dict.items(), key=lambda x: x[0])
+        for idx, data in enumerate(input_dict):
+            key, value = data
+            output_text += f'<{key}> made of <'
+            for jdx, v in enumerate(value):
+                if jdx == len(value) - 1:
+                    output_text += f'{v}>, '
+                else:
+                    output_text += f'{v}, '
+        output_text = output_text[:-2]
         output_text += '.'
+        print(output_text)
         output_texts.append(output_text)
 
     with open('../../../datasets/preprocessed/text_sequence_datasets.pkl', 'wb') as f:
