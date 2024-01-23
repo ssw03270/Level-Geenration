@@ -153,13 +153,15 @@ class Transformer(nn.Module):
                 cx, cy, cz = center_position
 
                 for m in range(seq_length):
-                    if not mask[b, s, m]:
+                    if mask[b, s, m]:
                         position = real_position_sequence[b, m]
                         category = category_sequence[b, m]
                         id = id_sequence[b, m]
 
                         x, y, z = position
                         x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
+                        if not 0 <= x < voxel_size and not 0 <= y < voxel_size and not 0 <= z < voxel_size:
+                            print(center_position, position)
                         voxel_grid[b, s, x, y, z] = [category, id]
 
         voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(device)
