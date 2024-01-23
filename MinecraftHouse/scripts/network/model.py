@@ -138,6 +138,12 @@ class Transformer(nn.Module):
     def get_voxel_with_mask(self, real_position_sequence, category_sequence, id_sequence, mask, distance=3):
         batch_size = real_position_sequence.shape[0]
         seq_length = real_position_sequence.shape[1]
+        device = real_position_sequence.device
+
+        real_position_sequence = real_position_sequence.device.cpu().detach().numpy()
+        category_sequence = category_sequence.device.cpu().detach().numpy()
+        id_sequence = id_sequence.device.cpu().detach().numpy()
+        mask = mask.device.cpu().detach().numpy()
 
         voxel_size = 2 * distance + 1
         voxel_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size, 2))
@@ -156,7 +162,7 @@ class Transformer(nn.Module):
                         x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
                         voxel_grid[b, s, x, y, z] = [category, id]
 
-        voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(real_position_sequence.device)
+        voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(device)
         return voxel_grid
 
     def forward(self, text_sequence, direction_sequence, position_sequence, id_sequence, category_sequence,
