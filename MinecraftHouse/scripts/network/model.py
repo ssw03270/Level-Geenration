@@ -85,7 +85,7 @@ class ConvEncoder(nn.Module):
         self.id_embedding = nn.Embedding(253, int(d_model / 2))
         self.category_embedding = nn.Embedding(33 + 3, int(d_model / 2))
 
-        self.conv1 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=5)
+        self.conv1 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=5, padding=1)
         self.conv2 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=3)
         self.conv3 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=3)
 

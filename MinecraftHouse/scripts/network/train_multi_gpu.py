@@ -159,7 +159,6 @@ class Trainer:
                 text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
                 text_sequence = text_sequence.to(device=self.device)
 
-                direction_sequence = direction_sequence.to(device=self.device)
                 position_sequence = position_sequence.to(device=self.device)
                 id_sequence = id_sequence.to(device=self.device)
                 category_sequence = category_sequence.to(device=self.device)
