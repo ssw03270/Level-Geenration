@@ -148,14 +148,13 @@ class Transformer(nn.Module):
 
                 for m in range(seq_length):
                     if mask[b, s, m]:
-                        real_position = real_position_sequence[b, m]
-                        real_category = category_sequence[b, m]
-                        real_id = id_sequence[b, m]
+                        position = real_position_sequence[b, m]
+                        category = category_sequence[b, m]
+                        id = id_sequence[b, m]
 
-                        for position, category, id in zip(real_position, real_category, real_id):
-                            x, y, z = position
-                            x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
-                            voxel_grid[b, s, x, y, z] = [category, id]
+                        x, y, z = position
+                        x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
+                        voxel_grid[b, s, x, y, z] = [category, id]
 
         voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(real_position_sequence.device)
         return voxel_grid
