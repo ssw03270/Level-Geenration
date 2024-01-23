@@ -158,6 +158,8 @@ class Transformer(nn.Module):
 
         differences = torch.abs(tensor_expanded_1 - tensor_expanded_2)
         max_distances = torch.max(differences, dim=-1).values
+        print(max_distances)
+        print(torch.min(differences, dim=-1).values)
 
         mask = max_distances <= distance
         mask.to(tensor.device)
