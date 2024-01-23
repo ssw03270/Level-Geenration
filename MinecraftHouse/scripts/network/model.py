@@ -128,10 +128,10 @@ class Transformer(nn.Module):
         tensor_expanded_1 = tensor.unsqueeze(2)
         tensor_expanded_2 = tensor.unsqueeze(1)
 
-        differences = tensor_expanded_1 - tensor_expanded_2
-        distances = torch.sqrt(torch.sum(differences ** 2, dim=-1))
+        differences = torch.abs(tensor_expanded_1 - tensor_expanded_2)
+        max_distances = torch.max(differences, dim=-1).values
 
-        mask = distances <= distance
+        mask = max_distances <= distance
         mask.to(tensor.device)
         return mask
 
