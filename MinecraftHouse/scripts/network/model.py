@@ -197,5 +197,6 @@ class Transformer(nn.Module):
         decoded_direction = decoded_direction.view(batch_size, seq_length, 27)
         decoded_direction[:, :, 13] = -1e9
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
+        print(decoded_direction.shape)
 
         return decoded_category, decoded_id, decoded_parent.squeeze(0), decoded_direction
