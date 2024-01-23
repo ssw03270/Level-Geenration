@@ -236,10 +236,13 @@ class Transformer(nn.Module):
         id_mask = self.get_index_mask(id_sequence, id_sequence) & global_mask
         id_mask = self.select_mask_with_indices(id_mask, decoded_parent_index)
 
+        local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=2) & global_mask
+        local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
+
         attention_output = self.block_decoder(bert_output, position_sequence, id_sequence,
                                               category_sequence,
                                               enc_mask=bert_mask, category_mask=category_mask,
-                                              id_mask=id_mask, local_mask=None)
+                                              id_mask=id_mask, local_mask=local_mask)
 
         # local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=2) & global_mask
         # local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
