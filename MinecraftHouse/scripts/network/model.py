@@ -260,4 +260,4 @@ class Transformer(nn.Module):
         decoded_direction = self.direction_decoding(output)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
-        return decoded_category, decoded_id, decoded_parent.squeeze(0), decoded_direction
+        return decoded_category, decoded_id, decoded_parent, decoded_direction
