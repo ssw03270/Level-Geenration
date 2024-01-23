@@ -80,6 +80,35 @@ class TransformerDecoder(nn.Module):
 
         return dec_output
 
+class ConvEncoder(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+        self.id_embedding = nn.Embedding(253, int(d_model / 2))
+        self.category_embedding = nn.Embedding(33 + 3, int(d_model / 2))
+
+        self.conv1 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=5)
+        self.conv2 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=3)
+        self.conv3 = nn.Conv3d(in_channels=d_model, out_channels=d_model, kernel_size=3)
+
+    def forward(self, id_grid, category_grid):
+        grid_size = id_grid.shape[2]
+
+        id_grid = id_grid.view(-1, grid_size, grid_size, grid_size)
+        category_grid = category_grid.view(-1, grid_size, grid_size, grid_size)
+
+        id_grid = self.id_embedding(id_grid)
+        category_grid = self.category_embedding(category_grid)
+
+        id_grid = id_grid.permute(0, 4, 1, 2, 3)
+        category_grid = category_grid.permute(0, 4, 1, 2, 3)
+
+        grid = torch.cat((id_grid, category_grid), dim=1)
+
+        grid = torch.relu(self.conv1(grid))
+        grid = torch.relu(self.conv2(grid))
+        grid = torch.relu(self.conv3(grid))
+
+        return grid
 
 class Transformer(nn.Module):
     def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
@@ -92,18 +121,17 @@ class Transformer(nn.Module):
 
         self.parent_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                                  d_inner=d_hidden, dropout=dropout)
+        self.parent_decoding = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
+
         self.block_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
+        self.conv_encoder = ConvEncoder(d_model=d_model)
 
-        self.parent_decoding = MultiHeadAttention(n_head=1, d_model=d_model, dropout=0.0)
+        self.decoding_layer = nn.Linear(d_model * 2, d_model)
 
         self.category_decoding = nn.Linear(d_model, 33 + 3)
         self.id_decoding = nn.Linear(d_model, 253)
         self.direction_decoding = nn.Linear(d_model, 27)
-
-        self.conv1 = nn.Conv3d(in_channels=1, out_channels=4, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv3d(in_channels=4, out_channels=2, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv3d(in_channels=2, out_channels=1, kernel_size=3, stride=1, padding=1)
 
     def get_index_mask(self, category_sequence, next_category_sequence):
         a_expanded = category_sequence.unsqueeze(2)
@@ -146,7 +174,8 @@ class Transformer(nn.Module):
         mask = mask.cpu().detach().numpy()
 
         voxel_size = 2 * distance + 1
-        voxel_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size, 2))
+        id_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size))
+        category_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size))
         for b in range(batch_size):
             for s in range(seq_length):
                 center_position = real_position_sequence[b, s]
@@ -160,12 +189,16 @@ class Transformer(nn.Module):
 
                         x, y, z = position
                         x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
-                        if not 0 <= x < voxel_size or not 0 <= y < voxel_size or not 0 <= z < voxel_size:
-                            print(center_position, position)
-                        voxel_grid[b, s, x, y, z] = [category, id]
+                        id_grid[b, s, x, y, z] = id
+                        category_grid[b, s, x, y, z] = category
 
-        voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(device)
-        return voxel_grid
+        id_grid = torch.tensor(id_grid, dtype=torch.long).to(device)
+        category_grid = torch.tensor(category_grid, dtype=torch.long).to(device)
+
+        id_grid = id_grid.view(-1, voxel_size, voxel_size, voxel_size)
+        category_grid = category_grid.view(-1, voxel_size, voxel_size, voxel_size)
+
+        return id_grid, category_grid
 
     def forward(self, text_sequence, direction_sequence, position_sequence, id_sequence, category_sequence,
                 real_position_sequence, pad_mask_sequence, next_category_sequence, next_id_sequence,
@@ -194,16 +227,6 @@ class Transformer(nn.Module):
         else:
             decoded_parent_index = torch.argmax(decoded_parent, dim=-1)
 
-        local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3) & global_mask
-        local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
-        print('g', global_mask)
-        print('---')
-        print('l', local_mask)
-        print(real_position_sequence[0])
-        print(category_sequence[0])
-        print(id_sequence[0])
-        print(self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=4)[0, 0])
-        print('----')
         category_mask = self.get_index_mask(category_sequence, category_sequence)
         category_mask = self.select_mask_with_indices(category_mask, decoded_parent_index)
         category_mask = category_mask & global_mask
@@ -212,31 +235,27 @@ class Transformer(nn.Module):
         id_mask = self.select_mask_with_indices(id_mask, decoded_parent_index)
         id_mask = id_mask & global_mask
 
-        block_output = self.block_decoder(bert_output, direction_sequence, position_sequence, id_sequence, category_sequence,
+        attention_output = self.block_decoder(bert_output, direction_sequence, position_sequence, id_sequence, category_sequence,
                                           enc_mask=bert_mask, category_mask=category_mask,
-                                          id_mask=id_mask, local_mask=local_mask)
+                                          id_mask=id_mask, local_mask=None)
 
-        decoded_category = self.category_decoding(block_output)
+        local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3) & global_mask
+        local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
+        id_grid, category_grid = self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=4)
+
+        conv_output = self.conv_encoder(id_grid, category_grid)
+        conv_output = conv_output.view(batch_size, seq_length, -1)
+
+        output = torch.cat((attention_output, conv_output), dim=-1)
+        output = self.decoding_layer(output)
+
+        decoded_category = self.category_decoding(output)
         decoded_category = torch.softmax(decoded_category, dim=-1)
 
-        decoded_id = self.id_decoding(block_output)
+        decoded_id = self.id_decoding(output)
         decoded_id = torch.softmax(decoded_id, dim=-1)
 
-        decoded_direction = self.direction_decoding(block_output)
-        decoded_direction = decoded_direction.view(-1, 3, 3, 3).unsqueeze(1)
-
-        decoded_direction = self.conv1(decoded_direction)
-        decoded_direction = torch.relu(decoded_direction)
-        decoded_direction = self.conv2(decoded_direction)
-        decoded_direction = torch.relu(decoded_direction)
-        decoded_direction = self.conv3(decoded_direction)
-        decoded_direction = torch.relu(decoded_direction)
-
-        decoded_direction = decoded_direction.view(batch_size, seq_length, 27)
-        mask = torch.zeros_like(decoded_direction, dtype=torch.bool)
-        mask[:, :, 13] = True
-        decoded_direction = decoded_direction.masked_fill(mask, -1e9)
-
+        decoded_direction = self.direction_decoding(output)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
         return decoded_category, decoded_id, decoded_parent.squeeze(0), decoded_direction
