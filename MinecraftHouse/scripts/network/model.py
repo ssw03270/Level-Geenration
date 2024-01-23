@@ -191,6 +191,8 @@ class Transformer(nn.Module):
         local_mask = local_mask & global_mask
 
         print(real_position_sequence[0])
+        print(category_sequence[0])
+        print(id_sequence[0])
         print(self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=3)[0, 0])
         print('----')
         category_mask = self.get_index_mask(category_sequence, category_sequence)
