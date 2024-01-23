@@ -127,11 +127,11 @@ class Transformer(nn.Module):
                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
         self.conv_encoder = ConvEncoder(d_model=d_model)
 
-        self.category_decoding = nn.Linear(d_model * 2, d_model)
+        self.category_decoding = nn.Linear(d_model, d_model)
         self.category_fc = nn.Linear(d_model, 33 + 3)
-        self.id_decoding = nn.Linear(d_model * 2, d_model)
+        self.id_decoding = nn.Linear(d_model, d_model)
         self.id_fc = nn.Linear(d_model, 253)
-        self.direction_decoding = nn.Linear(d_model * 2, d_model)
+        self.direction_decoding = nn.Linear(d_model, d_model)
         self.direction_fc = nn.Linear(d_model, 27)
 
     def get_index_mask(self, category_sequence, next_category_sequence):
@@ -241,15 +241,16 @@ class Transformer(nn.Module):
                                               enc_mask=bert_mask, category_mask=category_mask,
                                               id_mask=id_mask, local_mask=None)
 
-        local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=2) & global_mask
-        local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
-        id_grid, category_grid = self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence,
-                                                          local_mask, distance=3)
-
-        conv_output = self.conv_encoder(id_grid, category_grid)
-        conv_output = conv_output.view(batch_size, seq_length, -1)
-
-        output = torch.cat((attention_output, conv_output), dim=-1)
+        # local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=2) & global_mask
+        # local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
+        # id_grid, category_grid = self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence,
+        #                                                   local_mask, distance=3)
+        #
+        # conv_output = self.conv_encoder(id_grid, category_grid)
+        # conv_output = conv_output.view(batch_size, seq_length, -1)
+        #
+        # output = torch.cat((attention_output, conv_output), dim=-1)
+        output = attention_output
 
         decoded_category = self.category_decoding(output)
         decoded_category = self.category_fc(decoded_category)
