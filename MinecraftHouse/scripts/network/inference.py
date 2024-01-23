@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 from datetime import datetime
+from transformers import BertTokenizer, BertModel
 
 import plotly.graph_objects as go
 import numpy as np
@@ -15,7 +16,7 @@ from model import Transformer
 from dataloader import CraftAssistDataset
 from train_single_gpu import get_accuracy, cross_entropy_loss
 
-dir_dictionary = {
+direction_dictionary = {
     0: [-1, -1, -1],
     1: [-1, -1, 0],
     2: [-1, -1, 1],
@@ -41,11 +42,14 @@ dir_dictionary = {
     22: [1, 0, 1],
     23: [1, 1, -1],
     24: [1, 1, 0],
-    25: [1, 1, 1]
+    25: [1, 1, 1],
+    26: [0, 0, 0]
 }
-dir_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0],
-            [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0], [0, 1, 1],
-            [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0], [1, 1, 1]]
+direction_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0],
+                  [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0],
+                  [0, 1, 1],
+                  [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0],
+                  [1, 1, 1]]
 
 
 def create_cube(center, size=1):
@@ -97,7 +101,7 @@ def rendering(position_sequence, semantic_sequence):
         elif semantic == '2':
             categorys = 'pad'
         else:
-            category = train_dataset.sorted_block_semantic_values[semantic - 3]
+            category = train_dataset.sorted_category_values[semantic - 3]
 
         categorys.append(category)
         print(category)
@@ -139,10 +143,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a transformer with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=512, help="Batch size for training.")
-    parser.add_argument("--d_hidden", type=int, default=2048, help="Batch size for training.")
-    parser.add_argument("--n_head", type=int, default=8, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=6, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--d_hidden", type=int, default=512, help="Batch size for training.")
+    parser.add_argument("--n_head", type=int, default=4, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training.")
     parser.add_argument("--dropout", type=float, default=0.1, help="Dropout rate used in the transformer model.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
@@ -165,6 +169,7 @@ if __name__ == '__main__':
     # Only the first dataset initialization will load the full dataset from disk
     train_dataset = CraftAssistDataset(data_type='train')
     train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True)
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
     # Initialize the Transformer model
     transformer = Transformer(opt.d_model, opt.d_hidden, opt.n_head, opt.n_layer, opt.dropout).to(device=device)
@@ -178,84 +183,93 @@ if __name__ == '__main__':
         # Iterate over batches
         for idx, data in enumerate(tqdm(train_dataloader)):
             # Get the source and target sequences from the batch
-            true_position_sequence, position_sequence, block_id_sequence, block_semantic_sequence, \
-                dir_sequence, parent_sequence, pad_mask_sequence, terrain_mask_sequence = data
+            direction_sequence, position_sequence, id_sequence, category_sequence, next_category_sequence, \
+                next_id_sequence, next_parent_sequence, next_direction_sequence, true_position_sequence, \
+                pad_mask_sequence, text_sequence = data
+
+            text_sequence = tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
+            text_sequence = text_sequence.to(device=device)
+
+            direction_sequence = direction_sequence.to(device=device)
+            position_sequence = position_sequence.to(device=device)
+            id_sequence = id_sequence.to(device=device)
+            category_sequence = category_sequence.to(device=device)
+
+            next_category_sequence = next_category_sequence.to(device=device)
+            next_id_sequence = next_id_sequence.to(device=device)
+            next_parent_sequence = next_parent_sequence.to(device=device)
+            next_direction_sequence = next_direction_sequence.to(device=device)
 
             true_position_sequence = true_position_sequence.to(device=device)
-            position_sequence = position_sequence.to(device=device)
-            block_id_sequence = block_id_sequence.to(device=device)
-            block_semantic_sequence = block_semantic_sequence.to(device=device)
-            dir_sequence = dir_sequence.to(device=device)
-            parent_sequence = parent_sequence.to(device=device)
             pad_mask_sequence = pad_mask_sequence.to(device=device)
-            terrain_mask_sequence = terrain_mask_sequence.to(device=device)
 
             real_true_position_sequence = []
+            real_direction_sequence = []
             real_position_sequence = []
-            real_block_id_sequence = []
-            real_block_semantic_sequence = []
-            real_dir_sequence = []
-            real_parent_sequence = []
+            real_id_sequence = []
+            real_category_sequence = []
+            real_next_direction_sequence = []
+            real_next_parent_sequence = []
             real_pad_mask_sequence = []
-            real_terrain_mask_sequence = []
 
             for idx in range(len(position_sequence[0])):
-                if terrain_mask_sequence[0, idx].cpu().detach().numpy():
+                if idx > 50:
                     break
 
                 real_true_position_sequence.append(true_position_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_direction_sequence.append(direction_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_position_sequence.append(position_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_block_id_sequence.append(block_id_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_block_semantic_sequence.append(block_semantic_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_dir_sequence.append(dir_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_parent_sequence.append(parent_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_id_sequence.append(id_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_category_sequence.append(category_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_next_direction_sequence.append(next_direction_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_next_parent_sequence.append(next_parent_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_pad_mask_sequence.append(pad_mask_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_terrain_mask_sequence.append(terrain_mask_sequence[0, idx].cpu().detach().numpy().tolist())
 
             real_true_position_sequence = torch.tensor(real_true_position_sequence, dtype=torch.long).to(
                 device).unsqueeze(0)
+            real_direction_sequence = torch.tensor(real_direction_sequence, dtype=torch.long).to(device).unsqueeze(0)
             real_position_sequence = torch.tensor(real_position_sequence, dtype=torch.float32).to(device).unsqueeze(0)
-            real_block_id_sequence = torch.tensor(real_block_id_sequence, dtype=torch.long).to(device).unsqueeze(0)
-            real_block_semantic_sequence = torch.tensor(real_block_semantic_sequence, dtype=torch.long).to(
+            real_id_sequence = torch.tensor(real_id_sequence, dtype=torch.long).to(device).unsqueeze(0)
+            real_category_sequence = torch.tensor(real_category_sequence, dtype=torch.long).to(
                 device).unsqueeze(0)
-            real_dir_sequence = torch.tensor(real_dir_sequence, dtype=torch.long).to(device).unsqueeze(0)
-            real_parent_sequence = torch.tensor(real_parent_sequence, dtype=torch.long).to(device).unsqueeze(0)
+            real_next_direction_sequence = torch.tensor(real_next_direction_sequence, dtype=torch.long).to(
+                device).unsqueeze(0)
+            real_next_parent_sequence = torch.tensor(real_next_parent_sequence, dtype=torch.long).to(device).unsqueeze(
+                0)
             real_pad_mask_sequence = torch.tensor(real_pad_mask_sequence, dtype=torch.bool).to(device).unsqueeze(0)
-            real_terrain_mask_sequence = torch.tensor(real_terrain_mask_sequence, dtype=torch.bool).to(
-                device).unsqueeze(0)
 
             print(real_true_position_sequence.shape, true_position_sequence.shape)
+            print(real_direction_sequence.shape, direction_sequence.shape)
             print(real_position_sequence.shape, position_sequence.shape)
-            print(real_block_id_sequence.shape, block_id_sequence.shape)
-            print(real_block_semantic_sequence.shape, block_semantic_sequence.shape)
-            print(real_dir_sequence.shape, dir_sequence.shape)
-            print(real_parent_sequence.shape, parent_sequence.shape)
+            print(real_id_sequence.shape, id_sequence.shape)
+            print(real_category_sequence.shape, category_sequence.shape)
+            print(real_next_direction_sequence.shape, next_direction_sequence.shape)
+            print(real_next_parent_sequence.shape, next_parent_sequence.shape)
             print(real_pad_mask_sequence.shape, pad_mask_sequence.shape)
-            print(real_terrain_mask_sequence.shape, terrain_mask_sequence.shape)
-            print(real_position_sequence)
 
+            rendering(real_position_sequence, real_category_sequence)
             jdx = 0
             while True:
                 # Get the model's predictions
-                parent_output, dir_output, id_output, category_output = transformer(real_position_sequence,
-                                                                                    real_block_id_sequence,
-                                                                                    real_block_semantic_sequence,
-                                                                                    real_pad_mask_sequence,
-                                                                                    real_parent_sequence,
-                                                                                    real_true_position_sequence,
-                                                                                    inference_mode=True)
+                category_output, id_output, parent_output, direction_output = transformer(text_sequence,
+                                                                                          real_direction_sequence,
+                                                                                          real_position_sequence,
+                                                                                          real_id_sequence,
+                                                                                          real_category_sequence,
+                                                                                          real_true_position_sequence,
+                                                                                          real_pad_mask_sequence,
+                                                                                          None,
+                                                                                          None,
+                                                                                          real_next_parent_sequence)
 
-                dir_list = torch.tensor(dir_list).float().to(device)
-                parent_output = parent_output.unsqueeze(0)
+                direction_list = torch.tensor(direction_list).float().to(device)
                 cur_parent_idx = torch.argmax(parent_output[:, -1], dim=-1).unsqueeze(0)
-                real_parent_sequence = torch.cat((real_parent_sequence, cur_parent_idx), dim=-1)
+                real_next_parent_sequence = torch.cat((real_next_parent_sequence, cur_parent_idx), dim=-1)
 
-                cur_dir = torch.argmax(dir_output[:, -1], dim=-1).unsqueeze(0)
-                # print(parent_output[:, -1].cpu().detach().numpy().tolist(), cur_parent_idx, parent_output.shape)
+                cur_dir = torch.argmax(direction_output[:, -1], dim=-1).unsqueeze(0)
+                real_direction_sequence = torch.cat((real_direction_sequence, cur_dir), dim=1)
 
-                real_dir_sequence = torch.cat((real_dir_sequence, cur_dir), dim=1)
-
-                new_dir = np.array(dir_dictionary[cur_dir.cpu().detach().numpy()[0, 0]])
+                new_dir = np.array(direction_dictionary[cur_dir.cpu().detach().numpy()[0, 0]])
                 new_position = real_position_sequence[
                     0, cur_parent_idx.cpu().detach().numpy()[0, 0]].cpu().detach().numpy()
                 new_position = train_dataset.restore_min_max_scaling(new_position) + new_dir
@@ -268,38 +282,35 @@ if __name__ == '__main__':
                 new_position = torch.tensor(new_position).to(device)
                 real_true_position_sequence = torch.cat((real_true_position_sequence, new_position), dim=1)
 
-                cur_block_id = torch.argmax(id_output[:, -1], dim=-1).unsqueeze(0)
-                real_block_id_sequence = torch.cat((real_block_id_sequence, cur_block_id), dim=1)
+                cur_id = torch.argmax(id_output[:, -1], dim=-1).unsqueeze(0)
+                real_id_sequence = torch.cat((real_id_sequence, cur_id), dim=1)
 
-                cur_block_semantic = torch.argmax(category_output[:, -1], dim=-1).unsqueeze(0)
-                real_block_semantic_sequence = torch.cat((real_block_semantic_sequence, cur_block_semantic), dim=1)
+                cur_category = torch.argmax(category_output[:, -1], dim=-1).unsqueeze(0)
+                real_category_sequence = torch.cat((real_category_sequence, cur_category), dim=1)
 
                 real_pad_mask_sequence = torch.cat((real_pad_mask_sequence, torch.tensor([[1]]).bool().to(device)),
                                                    dim=1)
-                real_terrain_mask_sequence = torch.cat(
-                    (real_terrain_mask_sequence, torch.tensor([[1]]).bool().to(device)), dim=1)
-
-                print(jdx, cur_block_semantic.cpu().detach().numpy()[0])
+                print(jdx, cur_category.cpu().detach().numpy()[0])
                 jdx += 1
-                if cur_block_semantic.cpu().detach().numpy()[0] == 1 or jdx > 1500:
+                if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 1500:
                     break
 
-            rendering(real_position_sequence, real_block_semantic_sequence)
-            break
+            rendering(real_position_sequence, real_category_sequence)
+
             # Compute the losses
             # mask = real_pad_mask_sequence & real_terrain_mask_sequence
             # loss_parent = cross_entropy_loss(real_parent_sequence, parent_sequence.detach(), mask.detach())
-            # loss_dir = cross_entropy_loss(real_dir_sequence, dir_sequence.detach(), mask.detach())
-            # loss_id = cross_entropy_loss(real_block_id_sequence[:, :-1], block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-            # loss_category = cross_entropy_loss(real_block_semantic_sequence[:, :-1], block_semantic_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            # loss_dir = cross_entropy_loss(real_direction_sequence, direction_sequence.detach(), mask.detach())
+            # loss_id = cross_entropy_loss(real_id_sequence[:, :-1], id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            # loss_category = cross_entropy_loss(real_category_sequence[:, :-1], category_sequence[:, 1:].detach(), mask[:, 1:].detach())
             #
             # true_parent_sum, problem_parent_sum = get_accuracy(real_parent_sequence.detach(), parent_sequence.detach(),
             #                                                    mask.detach())
-            # true_dir_sum, problem_dir_sum = get_accuracy(real_dir_sequence.detach(), dir_sequence.detach(), mask.detach())
-            # true_id_sum, problem_id_sum = get_accuracy(real_block_id_sequence[:, :-1].detach(),
-            #                                            block_id_sequence[:, 1:].detach(), mask[:, 1:].detach())
-            # true_category_sum, problem_category_sum = get_accuracy(real_block_semantic_sequence[:, :-1].detach(),
-            #                                                        block_semantic_sequence[:, 1:].detach(),
+            # true_direction_sum, problem_direction_sum = get_accuracy(real_direction_sequence.detach(), direction_sequence.detach(), mask.detach())
+            # true_id_sum, problem_id_sum = get_accuracy(real_id_sequence[:, :-1].detach(),
+            #                                            id_sequence[:, 1:].detach(), mask[:, 1:].detach())
+            # true_category_sum, problem_category_sum = get_accuracy(real_category_sequence[:, :-1].detach(),
+            #                                                        category_sequence[:, 1:].detach(),
             #                                                        mask[:, 1:].detach())
             #
             # print(f"Epoch {idx + 1} - Inference Loss CE parent: {loss_parent:.4f}")
@@ -308,6 +319,6 @@ if __name__ == '__main__':
             # print(f"Epoch {idx + 1} - Inference Loss CE category: {loss_category:.4f}")
             #
             # print(f"Epoch {idx + 1} - Inference accuracy parent: {true_parent_sum / problem_parent_sum:.4f}")
-            # print(f"Epoch {idx + 1} - Inference accuracy dir: {true_dir_sum / problem_dir_sum:.4f}")
+            # print(f"Epoch {idx + 1} - Inference accuracy dir: {true_direction_sum / problem_direction_sum:.4f}")
             # print(f"Epoch {idx + 1} - Inference accuracy id: {true_id_sum / problem_id_sum:.4f}")
             # print(f"Epoch {idx + 1} - Inference accuracy category: {true_category_sum / problem_category_sum:.4f}")

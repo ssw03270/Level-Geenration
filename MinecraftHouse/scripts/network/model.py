@@ -101,6 +101,10 @@ class Transformer(nn.Module):
         self.id_decoding = nn.Linear(d_model, 253)
         self.direction_decoding = nn.Linear(d_model, 27)
 
+        self.conv1 = nn.Conv3d(in_channels=1, out_channels=4, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv3d(in_channels=4, out_channels=2, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv3d(in_channels=2, out_channels=1, kernel_size=3, stride=1, padding=1)
+
     def get_index_mask(self, category_sequence, next_category_sequence):
         a_expanded = category_sequence.unsqueeze(2)
         b_expanded = next_category_sequence.unsqueeze(1)
@@ -134,6 +138,10 @@ class Transformer(nn.Module):
     def forward(self, text_sequence, direction_sequence, position_sequence, id_sequence, category_sequence,
                 real_position_sequence, pad_mask_sequence, next_category_sequence, next_id_sequence,
                 next_parent_sequence):
+
+        batch_size = position_sequence.shape[0]
+        seq_length = position_sequence.shape[1]
+
         bert_input = text_sequence['input_ids']
         bert_mask = text_sequence['attention_mask']
         bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
@@ -177,6 +185,17 @@ class Transformer(nn.Module):
         decoded_id = torch.softmax(decoded_id, dim=-1)
 
         decoded_direction = self.direction_decoding(block_output)
+        decoded_direction = decoded_direction.view(-1, 3, 3, 3).unsqueeze(1)
+
+        decoded_direction = self.conv1(decoded_direction)
+        decoded_direction = torch.relu(decoded_direction)
+        decoded_direction = self.conv2(decoded_direction)
+        decoded_direction = torch.relu(decoded_direction)
+        decoded_direction = self.conv3(decoded_direction)
+        decoded_direction = torch.relu(decoded_direction)
+
+        decoded_direction = decoded_direction.view(batch_size, seq_length, 27)
+        decoded_direction[:, :, 13] = -1e9
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
         return decoded_category, decoded_id, decoded_parent.squeeze(0), decoded_direction
