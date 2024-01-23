@@ -135,6 +135,31 @@ class Transformer(nn.Module):
         mask.to(tensor.device)
         return mask
 
+    def get_voxel_with_mask(self, real_position_sequence, category_sequence, id_sequence, mask, distance=3):
+        batch_size = real_position_sequence.shape[0]
+        seq_length = real_position_sequence.shape[1]
+
+        voxel_size = 2 * distance + 1
+        voxel_grid = np.zeros((batch_size, seq_length, voxel_size, voxel_size, voxel_size, 2))
+        for b in range(batch_size):
+            for s in range(seq_length):
+                center_position = real_position_sequence[b, s]
+                cx, cy, cz = center_position
+
+                for m in range(seq_length):
+                    if mask[b, m]:
+                        real_position = real_position_sequence[b, m]
+                        real_category = category_sequence[b, m]
+                        real_id = id_sequence[b, m]
+
+                        for position, category, id in zip(real_position, real_category, real_id):
+                            x, y, z = position
+                            x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
+                            voxel_grid[b, s, x, y, z] = [category, id]
+
+        voxel_grid = torch.Tensor(voxel_grid, dtype=torch.long).to(real_position_sequence.device)
+        return voxel_grid
+
     def forward(self, text_sequence, direction_sequence, position_sequence, id_sequence, category_sequence,
                 real_position_sequence, pad_mask_sequence, next_category_sequence, next_id_sequence,
                 next_parent_sequence):
@@ -166,6 +191,9 @@ class Transformer(nn.Module):
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
         local_mask = local_mask & global_mask
 
+        print(real_position_sequence[0])
+        print(self.get_voxel_with_mask(real_position_sequence, category_sequence, id_sequence, local_mask, distance=3)[0, 0])
+        print('----')
         category_mask = self.get_index_mask(category_sequence, category_sequence)
         category_mask = self.select_mask_with_indices(category_mask, decoded_parent_index)
         category_mask = category_mask & global_mask
