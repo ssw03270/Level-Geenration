@@ -127,9 +127,12 @@ class Transformer(nn.Module):
                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=True)
         self.conv_encoder = ConvEncoder(d_model=d_model)
 
-        self.category_decoding = nn.Linear(d_model * 2, 33 + 3)
-        self.id_decoding = nn.Linear(d_model * 2, 253)
-        self.direction_decoding = nn.Linear(d_model * 2, 27)
+        self.category_decoding = nn.Linear(d_model * 2, d_model)
+        self.category_fc = nn.Linear(d_model, 33 + 3)
+        self.id_decoding = nn.Linear(d_model * 2, d_model)
+        self.id_fc = nn.Linear(d_model, 253)
+        self.direction_decoding = nn.Linear(d_model * 2, d_model)
+        self.direction_fc = nn.Linear(d_model, 27)
 
     def get_index_mask(self, category_sequence, next_category_sequence):
         a_expanded = category_sequence.unsqueeze(2)
@@ -249,12 +252,15 @@ class Transformer(nn.Module):
         output = torch.cat((attention_output, conv_output), dim=-1)
 
         decoded_category = self.category_decoding(output)
+        decoded_category = self.category_fc(decoded_category)
         decoded_category = torch.softmax(decoded_category, dim=-1)
 
         decoded_id = self.id_decoding(output)
+        decoded_id = self.id_fc(decoded_id)
         decoded_id = torch.softmax(decoded_id, dim=-1)
 
         decoded_direction = self.direction_decoding(output)
+        decoded_direction = self.direction_fc(decoded_direction)
         decoded_direction = torch.softmax(decoded_direction, dim=-1)
 
         return decoded_category, decoded_id, decoded_parent, decoded_direction
