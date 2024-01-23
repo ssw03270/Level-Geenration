@@ -197,7 +197,9 @@ class Transformer(nn.Module):
         local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=3)
         local_mask = self.select_mask_with_indices(local_mask, decoded_parent_index)
         local_mask = local_mask & global_mask
-
+        print('g', global_mask)
+        print('---')
+        print('l', local_mask)
         print(real_position_sequence[0])
         print(category_sequence[0])
         print(id_sequence[0])
