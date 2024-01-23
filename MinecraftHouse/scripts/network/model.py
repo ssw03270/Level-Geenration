@@ -160,7 +160,7 @@ class Transformer(nn.Module):
 
                         x, y, z = position
                         x, y, z = x - cx + distance, y - cy + distance, y - cy + distance
-                        if not 0 <= x < voxel_size and not 0 <= y < voxel_size and not 0 <= z < voxel_size:
+                        if not 0 <= x < voxel_size or not 0 <= y < voxel_size or not 0 <= z < voxel_size:
                             print(center_position, position)
                         voxel_grid[b, s, x, y, z] = [category, id]
 
