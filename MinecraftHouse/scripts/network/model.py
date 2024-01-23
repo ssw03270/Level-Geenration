@@ -114,8 +114,8 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
         super().__init__()
         self.bert_encoder = BertModel.from_pretrained('bert-base-uncased')
-        for param in self.bert_encoder.parameters():
-            param.requires_grad = False
+        # for param in self.bert_encoder.parameters():
+        #     param.requires_grad = False
 
         self.bert_encoding = nn.Linear(768, d_model)
 

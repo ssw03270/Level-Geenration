@@ -29,19 +29,22 @@ if __name__ == '__main__':
                 block_name = id_dictionary[id].replace('minecraft:', '').replace('_block', '').replace('_', ' ') + ' blocks'
             except:
                 block_name = 'undetermined'
-            input_text = f'{category_name}s made of {block_name}'
+            input_text = f'<{category_name}s> made of <{block_name}>'
             if input_text not in input_texts and 'terrain' not in input_text:
                 input_texts.append(input_text)
 
-        output_text = 'This house consists of'
+        n_block = len(reorder_id_sequence)
+        output_text = f'This house is composed of <{n_block}> blocks. '
+        output_text = output_text + 'This house consists of'
         for idx, input_text in enumerate(input_texts):
             if idx == 0:
                 output_text += f' {input_text}'
             elif idx == len(input_texts) - 1:
-                output_text += f' and {input_text}.'
+                output_text += f' and {input_text}'
             else:
                 output_text += f', {input_text}'
 
+        output_text += '.'
         output_texts.append(output_text)
 
     with open('../../../datasets/preprocessed/text_sequence_datasets.pkl', 'wb') as f:
