@@ -69,7 +69,7 @@ class TransformerDecoder(nn.Module):
         category_sequence = self.category_embedding(category_sequence)
 
         dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
-        dec_output = self.pos_enc(dec_input)
+        dec_output = dec_input + self.pos_enc(dec_input)
         dec_output = self.dropout(dec_output)
 
         for dec_layer in self.layer_stack:
