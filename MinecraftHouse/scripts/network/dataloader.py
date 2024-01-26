@@ -40,11 +40,11 @@ class CraftAssistDataset(Dataset):
         self.data_type = data_type
 
         if data_type == 'train':
-            self.input_path = '../../datasets/preprocessed/reorder_sequence_datasets.pkl'
+            self.input_path = '../../datasets/preprocessed/sequence_datasets.pkl'
             self.output_path = '../../datasets/preprocessed/output_sequence_datasets.pkl'
             self.text_path = '../../datasets/preprocessed/text_sequence_datasets.pkl'
         else:
-            self.input_path = '../../datasets/preprocessed/reorder_sequence_datasets.pkl'
+            self.input_path = '../../datasets/preprocessed/sequence_datasets.pkl'
             self.output_path = '../../datasets/preprocessed/output_sequence_datasets.pkl'
             self.text_path = '../../datasets/preprocessed/text_sequence_datasets.pkl'
 

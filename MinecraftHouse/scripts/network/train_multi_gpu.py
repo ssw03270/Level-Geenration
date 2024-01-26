@@ -182,7 +182,9 @@ class Trainer:
                                                                                                next_parent_sequence)
 
                 # Compute the losses
-                mask = pad_mask_sequence
+                zero_parent_mask = next_parent_sequence != 0
+                mask = pad_mask_sequence & zero_parent_mask
+
                 loss_category = cross_entropy_loss(category_output, next_category_sequence.detach(), mask.detach())
                 loss_id = cross_entropy_loss(id_output, next_id_sequence.detach(), mask.detach())
                 loss_parent = cross_entropy_loss(parent_output, next_parent_sequence.detach(), mask.detach())
