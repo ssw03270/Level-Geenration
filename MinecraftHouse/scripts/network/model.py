@@ -54,7 +54,7 @@ class TransformerDecoder(nn.Module):
         self.id_embedding = nn.Embedding(253, int(d_model / 4))
         self.category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
-        # self.pos_enc = PositionalEncoding(d_model, 2048)
+        self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
         self.layer_stack = nn.ModuleList([
             DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout,
@@ -69,7 +69,8 @@ class TransformerDecoder(nn.Module):
         category_sequence = self.category_embedding(category_sequence)
 
         dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
-        dec_output = self.dropout(dec_input)
+        dec_output = self.pos_enc(dec_input)
+        dec_output = self.dropout(dec_output)
 
         for dec_layer in self.layer_stack:
             dec_output = dec_layer(enc_input, dec_output, enc_mask,
@@ -77,7 +78,6 @@ class TransformerDecoder(nn.Module):
                                    category_mask=category_mask, id_mask=id_mask)
 
         return dec_output
-
 
 class ConvEncoder(nn.Module):
     def __init__(self, d_model):
