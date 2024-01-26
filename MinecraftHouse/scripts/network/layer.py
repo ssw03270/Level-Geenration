@@ -22,6 +22,7 @@ class DecoderLayer(nn.Module):
             self.local_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
             self.category_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
             self.id_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
+            self.self_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         else:
             self.self_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
         self.cross_attn = MultiHeadAttention(n_head=n_head, d_model=d_model, dropout=dropout)
@@ -32,7 +33,8 @@ class DecoderLayer(nn.Module):
             local_output, _ = self.local_attn(dec_input, dec_input, dec_input, mask=local_mask)
             category_output, _ = self.category_attn(dec_input, dec_input, dec_input, mask=category_mask)
             id_output, _ = self.id_attn(dec_input, dec_input, dec_input, mask=id_mask)
-            dec_output = category_output + id_output + local_output
+            self_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
+            dec_output = category_output + id_output + local_output + self_output
         else:
             dec_output, _ = self.self_attn(dec_input, dec_input, dec_input, mask=dec_mask)
 

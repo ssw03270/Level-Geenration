@@ -241,7 +241,8 @@ class Transformer(nn.Module):
 
         attention_output = self.block_decoder(bert_output, position_sequence, id_sequence,
                                               category_sequence,
-                                              enc_mask=bert_mask, category_mask=category_mask,
+                                              enc_mask=bert_mask, dec_mask=global_mask,
+                                              category_mask=category_mask,
                                               id_mask=id_mask, local_mask=local_mask)
 
         # local_mask = self.calculate_distances_with_mask(real_position_sequence, distance=2) & global_mask
