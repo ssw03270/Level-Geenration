@@ -65,9 +65,9 @@ class CraftAssistDataset(Dataset):
 
         with open(self.input_path, 'rb') as f:
             data = pickle.load(f)
-            coords_sequences = data['reorder_coords_sequences']
-            id_sequences = data['reorder_id_sequences']
-            category_sequences = data['reorder_category_sequences']
+            coords_sequences = data['coords_sequences']
+            id_sequences = data['id_sequences']
+            category_sequences = data['category_sequences']
 
         with open(self.output_path, 'rb') as f:
             data = pickle.load(f)
