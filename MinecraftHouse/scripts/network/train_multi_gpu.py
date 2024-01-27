@@ -23,6 +23,9 @@ import wandb
 
 def mse_loss(pred, trg, mask):
     loss = F.mse_loss(pred, trg, reduction='none')
+
+    mask = mask.unsqueeze(-1)
+    mask = mask.expand(-1, -1, 3)
     masked_loss = loss * mask.float()
 
     return masked_loss.sum() / mask.float().sum()
