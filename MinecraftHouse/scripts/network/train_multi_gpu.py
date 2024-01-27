@@ -64,11 +64,20 @@ def get_accuracy(pred, trg, mask):
 
 
 def get_direction_accuracy(pred, trg, mask):
+    # 예측값을 반올림
     pred = torch.round(pred)
-    correct = (trg[mask].float() == pred[mask].float()).sum().item()
+
+    # (batch, seq, 3) 텐서에서 모든 요소가 일치하는지 확인
+    correct_elements = (pred == trg).all(dim=-1)
+
+    # 마스크 적용 및 일치하는 요소의 개수 계산
+    correct = correct_elements[mask].sum().item()
+
+    # 마스크에 의해 선택된 요소의 총 개수
     total = mask.sum().item()
 
     return correct, total
+
 
 
 class Trainer:

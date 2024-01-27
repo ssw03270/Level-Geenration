@@ -132,6 +132,5 @@ class Transformer(nn.Module):
         decoded_direction = self.direction_decoding(dec_output)
         decoded_direction = torch.relu(decoded_direction)
         decoded_direction = self.direction_fc(decoded_direction)
-        decoded_direction = torch.tanh(decoded_direction)
 
         return decoded_category, decoded_id, decoded_direction
