@@ -132,6 +132,8 @@ class CraftAssistDataset(Dataset):
         return self.data_length
 
     def min_max_scaling(self, direction_sequence):
+        return direction_sequence
+
         if self.min_val is None:
             self.min_val = np.min(direction_sequence, axis=(0, 1))
             self.max_val = np.max(direction_sequence, axis=(0, 1))
@@ -139,3 +141,12 @@ class CraftAssistDataset(Dataset):
         scaled_direction_sequence = (direction_sequence - self.min_val) / (self.max_val - self.min_val)
         scaled_direction_sequence = scaled_direction_sequence * 2 - 1
         return scaled_direction_sequence
+
+    def restore_min_max_scaling(self, scaled_direction_sequence):
+        return scaled_direction_sequence
+
+        # [0, 1] 범위로 되돌리기
+        original_scale_sequence = (scaled_direction_sequence + 1) / 2
+        # 원래의 범위로 복원
+        restored_direction_sequence = original_scale_sequence * (self.max_val - self.min_val) + self.min_val
+        return restored_direction_sequence

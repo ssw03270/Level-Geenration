@@ -16,42 +16,6 @@ from model import Transformer
 from dataloader import CraftAssistDataset
 from train_single_gpu import get_accuracy, cross_entropy_loss
 
-direction_dictionary = {
-    0: [-1, -1, -1],
-    1: [-1, -1, 0],
-    2: [-1, -1, 1],
-    3: [-1, 0, -1],
-    4: [-1, 0, 0],
-    5: [-1, 0, 1],
-    6: [-1, 1, -1],
-    7: [-1, 1, 0],
-    8: [-1, 1, 1],
-    9: [0, -1, -1],
-    10: [0, -1, 0],
-    11: [0, -1, 1],
-    12: [0, 0, -1],
-    13: [0, 0, 1],
-    14: [0, 1, -1],
-    15: [0, 1, 0],
-    16: [0, 1, 1],
-    17: [1, -1, -1],
-    18: [1, -1, 0],
-    19: [1, -1, 1],
-    20: [1, 0, -1],
-    21: [1, 0, 0],
-    22: [1, 0, 1],
-    23: [1, 1, -1],
-    24: [1, 1, 0],
-    25: [1, 1, 1],
-    26: [0, 0, 0]
-}
-direction_list = [[-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1], [-1, 1, -1], [-1, 1, 0],
-                  [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1], [0, 0, -1], [0, 0, 1], [0, 1, -1], [0, 1, 0],
-                  [0, 1, 1],
-                  [1, -1, -1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0],
-                  [1, 1, 1]]
-
-
 def create_cube(center, size=1):
     # 정육면체의 중심에서 꼭지점으로의 방향 벡터
     dirs = np.array([[1, 1, -1],
@@ -86,9 +50,10 @@ def create_mesh(vertices_list, category, color):
     return mesh
 
 
-def rendering(position_sequence, semantic_sequence):
-    position_sequence = position_sequence.squeeze().cpu().detach().numpy()
-    position_sequence = train_dataset.restore_min_max_scaling(position_sequence)
+def rendering(direction_sequence, semantic_sequence):
+    print(direction_sequence)
+    direction_sequence = direction_sequence.squeeze().cpu().detach().numpy()
+    direction_sequence = train_dataset.restore_min_max_scaling(direction_sequence)
     semantic_sequence = semantic_sequence.squeeze().cpu().detach().numpy()
 
     categorys = []
@@ -113,8 +78,10 @@ def rendering(position_sequence, semantic_sequence):
 
     category_mesh_data = {category: {'coords': []} for category in category_colors}
     fig = go.Figure()
-    for category, coord in zip(categorys, position_sequence):
-        category_mesh_data[category]['coords'].append([coord[0], coord[2], coord[1]])
+    cur_coord = [0, 0, 0]
+    for category, dir in zip(categorys, direction_sequence):
+        cur_coord = [cur_coord[0] + round(dir[0]), cur_coord[1] + round(dir[1]), cur_coord[2] + round(dir[2])]
+        category_mesh_data[category]['coords'].append(cur_coord)
 
     for category, coords in category_mesh_data.items():
         coord = coords['coords']
@@ -183,104 +150,58 @@ if __name__ == '__main__':
         # Iterate over batches
         for idx, data in enumerate(tqdm(train_dataloader)):
             # Get the source and target sequences from the batch
-            direction_sequence, position_sequence, id_sequence, category_sequence, next_category_sequence, \
-                next_id_sequence, next_parent_sequence, next_direction_sequence, true_position_sequence, \
+            direction_sequence, id_sequence, category_sequence, \
+                next_direction_sequence, next_category_sequence, next_id_sequence, \
                 pad_mask_sequence, text_sequence = data
 
             text_sequence = tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
             text_sequence = text_sequence.to(device=device)
 
             direction_sequence = direction_sequence.to(device=device)
-            position_sequence = position_sequence.to(device=device)
             id_sequence = id_sequence.to(device=device)
             category_sequence = category_sequence.to(device=device)
 
             next_category_sequence = next_category_sequence.to(device=device)
             next_id_sequence = next_id_sequence.to(device=device)
-            next_parent_sequence = next_parent_sequence.to(device=device)
             next_direction_sequence = next_direction_sequence.to(device=device)
 
-            true_position_sequence = true_position_sequence.to(device=device)
             pad_mask_sequence = pad_mask_sequence.to(device=device)
 
-            real_true_position_sequence = []
             real_direction_sequence = []
-            real_position_sequence = []
             real_id_sequence = []
             real_category_sequence = []
-            real_next_direction_sequence = []
-            real_next_parent_sequence = []
             real_pad_mask_sequence = []
 
-            for idx in range(len(position_sequence[0])):
+            for idx in range(len(direction_sequence[0])):
                 if idx > 50:
                     break
 
-                real_true_position_sequence.append(true_position_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_direction_sequence.append(direction_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_position_sequence.append(position_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_id_sequence.append(id_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_category_sequence.append(category_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_next_direction_sequence.append(next_direction_sequence[0, idx].cpu().detach().numpy().tolist())
-                real_next_parent_sequence.append(next_parent_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_pad_mask_sequence.append(pad_mask_sequence[0, idx].cpu().detach().numpy().tolist())
 
-            real_true_position_sequence = torch.tensor(real_true_position_sequence, dtype=torch.long).to(
-                device).unsqueeze(0)
             real_direction_sequence = torch.tensor(real_direction_sequence, dtype=torch.long).to(device).unsqueeze(0)
-            real_position_sequence = torch.tensor(real_position_sequence, dtype=torch.float32).to(device).unsqueeze(0)
             real_id_sequence = torch.tensor(real_id_sequence, dtype=torch.long).to(device).unsqueeze(0)
             real_category_sequence = torch.tensor(real_category_sequence, dtype=torch.long).to(
                 device).unsqueeze(0)
-            real_next_direction_sequence = torch.tensor(real_next_direction_sequence, dtype=torch.long).to(
-                device).unsqueeze(0)
-            real_next_parent_sequence = torch.tensor(real_next_parent_sequence, dtype=torch.long).to(device).unsqueeze(
-                0)
             real_pad_mask_sequence = torch.tensor(real_pad_mask_sequence, dtype=torch.bool).to(device).unsqueeze(0)
 
-            print(real_true_position_sequence.shape, true_position_sequence.shape)
             print(real_direction_sequence.shape, direction_sequence.shape)
-            print(real_position_sequence.shape, position_sequence.shape)
             print(real_id_sequence.shape, id_sequence.shape)
             print(real_category_sequence.shape, category_sequence.shape)
-            print(real_next_direction_sequence.shape, next_direction_sequence.shape)
-            print(real_next_parent_sequence.shape, next_parent_sequence.shape)
             print(real_pad_mask_sequence.shape, pad_mask_sequence.shape)
 
-            rendering(real_position_sequence, real_category_sequence)
             jdx = 0
             while True:
-                # Get the model's predictions
-                category_output, id_output, parent_output, direction_output = transformer(text_sequence,
-                                                                                          real_direction_sequence,
-                                                                                          real_position_sequence,
-                                                                                          real_id_sequence,
-                                                                                          real_category_sequence,
-                                                                                          real_true_position_sequence,
-                                                                                          real_pad_mask_sequence,
-                                                                                          None,
-                                                                                          None,
-                                                                                          real_next_parent_sequence)
+                category_output, id_output, direction_output = transformer(text_sequence,
+                                                                           direction_sequence,
+                                                                           id_sequence,
+                                                                           category_sequence,
+                                                                           pad_mask_sequence)
 
-                direction_list = torch.tensor(direction_list).float().to(device)
-                cur_parent_idx = torch.argmax(parent_output[:, -1], dim=-1).unsqueeze(0)
-                real_next_parent_sequence = torch.cat((real_next_parent_sequence, cur_parent_idx), dim=-1)
-
-                cur_dir = torch.argmax(direction_output[:, -1], dim=-1).unsqueeze(0)
+                cur_dir = direction_output[:, -1].unsqueeze(0)
                 real_direction_sequence = torch.cat((real_direction_sequence, cur_dir), dim=1)
-
-                new_dir = np.array(direction_dictionary[cur_dir.cpu().detach().numpy()[0, 0]])
-                new_position = real_position_sequence[
-                    0, cur_parent_idx.cpu().detach().numpy()[0, 0]].cpu().detach().numpy()
-                new_position = train_dataset.restore_min_max_scaling(new_position) + new_dir
-                new_position = train_dataset.min_max_scaling(new_position)
-                new_position = torch.tensor(new_position).float()
-                new_position = new_position.to(device).unsqueeze(0).unsqueeze(0)
-                real_position_sequence = torch.cat((real_position_sequence, new_position), dim=1)
-
-                new_position = train_dataset.restore_min_max_scaling(new_position.cpu().detach().numpy())
-                new_position = torch.tensor(new_position).to(device)
-                real_true_position_sequence = torch.cat((real_true_position_sequence, new_position), dim=1)
 
                 cur_id = torch.argmax(id_output[:, -1], dim=-1).unsqueeze(0)
                 real_id_sequence = torch.cat((real_id_sequence, cur_id), dim=1)
@@ -290,12 +211,13 @@ if __name__ == '__main__':
 
                 real_pad_mask_sequence = torch.cat((real_pad_mask_sequence, torch.tensor([[1]]).bool().to(device)),
                                                    dim=1)
+
                 print(jdx, cur_category.cpu().detach().numpy()[0])
                 jdx += 1
-                if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 1500:
+                if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 500:
                     break
 
-            rendering(real_position_sequence, real_category_sequence)
+            rendering(real_direction_sequence, real_category_sequence)
 
             # Compute the losses
             # mask = real_pad_mask_sequence & real_terrain_mask_sequence
