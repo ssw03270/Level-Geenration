@@ -72,13 +72,11 @@ class CraftAssistDataset(Dataset):
             pad_length = 2048 - data_length
             category_sequence = [category_to_index[value] for value in category_sequence]
 
-            next_direction_sequence = direction_sequence + [0, 0, 0] * pad_length
+            next_direction_sequence = direction_sequence + [[0, 0, 0]] * pad_length
             next_id_sequence = id_sequence + [0] * pad_length
             next_category_sequence = category_sequence + [1] + [0] * (pad_length - 1)
 
-            direction_sequence = [0, 0, 0] + direction_sequence + [0, 0, 0] * (pad_length - 1)
-            print(direction_sequence)
-            print(len(direction_sequence))
+            direction_sequence = [[0, 0, 0]] + direction_sequence + [[0, 0, 0]] * (pad_length - 1)
             id_sequence = [0] + id_sequence + [0] * (pad_length - 1)
             category_sequence = [2] + category_sequence + [1] + [0] * (pad_length - 2)
 
