@@ -120,15 +120,18 @@ class Transformer(nn.Module):
                                         enc_mask=bert_mask, dec_mask=global_mask)
 
         decoded_category = self.category_decoding(dec_output)
+        decoded_category = torch.relu(decoded_category)
         decoded_category = self.category_fc(decoded_category)
         decoded_category = torch.softmax(decoded_category, dim=-1)
 
         decoded_id = self.id_decoding(dec_output)
+        decoded_id = torch.relu(decoded_id)
         decoded_id = self.id_fc(decoded_id)
         decoded_id = torch.softmax(decoded_id, dim=-1)
 
         decoded_direction = self.direction_decoding(dec_output)
+        decoded_direction = torch.relu(decoded_direction)
         decoded_direction = self.direction_fc(decoded_direction)
-        decoded_direction = torch.softmax(decoded_direction, dim=-1)
+        decoded_direction = torch.tanh(decoded_direction)
 
         return decoded_category, decoded_id, decoded_direction

@@ -21,6 +21,13 @@ from dataloader import CraftAssistDataset
 import wandb
 
 
+def mse_loss(pred, trg, mask):
+    loss = F.mse_loss(pred, trg, reduction='none')
+    masked_loss = loss * mask.float()
+
+    return masked_loss.sum() / mask.float().sum()
+
+
 def cross_entropy_loss(pred, trg, mask):
     """
     Compute the binary cross-entropy loss between predictions and targets.
@@ -48,6 +55,14 @@ def get_accuracy(pred, trg, mask):
     pred = pred.reshape(mask.shape)
     # 정확도 계산
     correct = (trg[mask] == pred[mask]).sum().item()
+    total = mask.sum().item()
+
+    return correct, total
+
+
+def get_direction_accuracy(pred, trg, mask):
+    pred = torch.round(pred)
+    correct = (trg[mask].float() == pred[mask].float()).sum().item()
     total = mask.sum().item()
 
     return correct, total
@@ -177,7 +192,7 @@ class Trainer:
                 mask = pad_mask_sequence
                 loss_category = cross_entropy_loss(category_output, next_category_sequence.detach(), mask.detach())
                 loss_id = cross_entropy_loss(id_output, next_id_sequence.detach(), mask.detach())
-                loss_dir = cross_entropy_loss(direction_output, next_direction_sequence.detach(), mask.detach())
+                loss_dir = mse_loss(direction_output, next_direction_sequence.detach(), mask.detach())
                 loss = loss_dir + loss_id + loss_category
 
                 # Backpropagation and optimization step
@@ -209,9 +224,9 @@ class Trainer:
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
-                true_dir_sum, problem_dir_sum = get_accuracy(direction_output.detach(),
-                                                             next_direction_sequence.detach(),
-                                                             mask.detach())
+                true_dir_sum, problem_dir_sum = get_direction_accuracy(direction_output.detach(),
+                                                                       next_direction_sequence.detach(),
+                                                                       mask.detach())
                 dist.all_reduce(torch.tensor(true_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_dir_sums += true_dir_sum
