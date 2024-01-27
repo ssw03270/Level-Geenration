@@ -42,7 +42,7 @@ if __name__ == '__main__':
     annotated_schematics = data['annotated_schematics']
     annotation_lists = data['annotation_lists']
 
-    direction_sequences = []
+    coords_sequences = []
     category_sequences = []
     id_sequences = []
 
@@ -84,11 +84,9 @@ if __name__ == '__main__':
 
         id_sequence = []
         category_sequence = []
-        direction_sequence = []
-        for jdx, coord in enumerate(coords_sequence):
+        for coord in coords_sequence:
             block_id = id_voxel_map[coord[0], coord[1], coord[2]]
             id_sequence.append(block_id)
-
             try:
                 category = annotation_list[int(annotated_schematic[coord[0], coord[1], coord[2]])]
             except:
@@ -96,18 +94,13 @@ if __name__ == '__main__':
             category = vocab_mapping_function(category)
             category_sequence.append(category)
 
-            if jdx == 0:
-                direction = [0, 0, 0]
-            else:
-                direction = np.array(coord) - np.array(coords_sequence[jdx - 1])
-            direction_sequence.append(direction)
-
-        direction_sequences.append(direction_sequence)
+        coords_sequences.append(coords_sequence)
         id_sequences.append(id_sequence)
         category_sequences.append(category_sequence)
 
 
+    print(len(coords_sequences))
     with open('../../../datasets/preprocessed/sequence_datasets.pkl', 'wb') as f:
-        pickle.dump({'direction_sequence': direction_sequences,
+        pickle.dump({'coords_sequences': coords_sequences,
                      'id_sequences': id_sequences,
                      'category_sequences': category_sequences}, f)

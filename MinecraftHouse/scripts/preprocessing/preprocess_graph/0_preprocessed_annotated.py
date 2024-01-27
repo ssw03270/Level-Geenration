@@ -74,7 +74,7 @@ if __name__ == '__main__':
             house_name.append(data['house_name'][idx])
 
     print(len(schematics))
-    with open('../../../datasets/preprocessed/annotated_datasets.pkl', 'wb') as f:
+    with open('../../../datasets/preprocessed_graph/annotated_datasets.pkl', 'wb') as f:
         pickle.dump({'schematics': schematics,
                      'annotated_schematics': annotated_schematic,
                      'annotation_lists': annotation_list,

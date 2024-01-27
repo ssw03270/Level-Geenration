@@ -5,34 +5,6 @@ import os
 import pickle
 from tqdm import tqdm
 
-dir_dict = {(-1, -1, -1): 0,
-            (-1, -1, 0): 1,
-            (-1, -1, 1): 2,
-            (-1, 0, -1): 3,
-            (-1, 0, 0): 4,
-            (-1, 0, 1): 5,
-            (-1, 1, -1): 6,
-            (-1, 1, 0): 7,
-            (-1, 1, 1): 8,
-            (0, -1, -1): 9,
-            (0, -1, 0): 10,
-            (0, -1, 1): 11,
-            (0, 0, -1): 12,
-            (0, 0, 1): 13,
-            (0, 1, -1): 14,
-            (0, 1, 0): 15,
-            (0, 1, 1): 16,
-            (1, -1, -1): 17,
-            (1, -1, 0): 18,
-            (1, -1, 1): 19,
-            (1, 0, -1): 20,
-            (1, 0, 0): 21,
-            (1, 0, 1): 22,
-            (1, 1, -1): 23,
-            (1, 1, 0): 24,
-            (1, 1, 1): 25,
-            (0, 0, 0): 26}
-
 class CraftAssistDataset(Dataset):
     def __init__(self, data_type='train'):
         super(CraftAssistDataset, self).__init__()
@@ -41,38 +13,28 @@ class CraftAssistDataset(Dataset):
 
         if data_type == 'train':
             self.input_path = '../../datasets/preprocessed/sequence_datasets.pkl'
-            self.output_path = '../../datasets/preprocessed/output_sequence_datasets.pkl'
             self.text_path = '../../datasets/preprocessed/text_sequence_datasets.pkl'
         else:
             self.input_path = '../../datasets/preprocessed/sequence_datasets.pkl'
-            self.output_path = '../../datasets/preprocessed/output_sequence_datasets.pkl'
             self.text_path = '../../datasets/preprocessed/text_sequence_datasets.pkl'
 
         self.text_sequences = []
 
-        self.position_sequences = []
         self.id_sequences = []
         self.category_sequences = []
         self.direction_sequences = []
 
         self.next_category_sequences = []
         self.next_id_sequences = []
-        self.next_parent_sequences = []
         self.next_direction_sequences = []
 
-        self.real_position_sequences = []
         self.pad_mask_sequences = []
 
         with open(self.input_path, 'rb') as f:
             data = pickle.load(f)
-            coords_sequences = data['coords_sequences']
+            direction_sequences = data['direction_sequences']
             id_sequences = data['id_sequences']
             category_sequences = data['category_sequences']
-
-        with open(self.output_path, 'rb') as f:
-            data = pickle.load(f)
-            parent_sequences = data['parent_sequences']
-            direction_sequences = data['direction_sequences']
 
         with open(self.text_path, 'rb') as f:
             data = pickle.load(f)
@@ -91,116 +53,88 @@ class CraftAssistDataset(Dataset):
         for idx, value in enumerate(self.sorted_category_values):
             print(value, idx + 3)
 
-        for coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence, direction_sequence, text_sequence \
-                in zip(coords_sequences, id_sequences, category_sequences, parent_sequences, direction_sequences,
-                       text_sequences):
-            position_sequence = []
+        for direction_sequence_data, id_sequence_data, category_sequence_data, text_sequence \
+                in zip(direction_sequences, id_sequences, category_sequences, text_sequences):
+            direction_sequence = []
             id_sequence = []
             category_sequence = []
-            dir_sequence = []
 
-            next_parent_sequence = []
-            next_dir_sequence = []
-
-            data_length = len(coords_sequence_data)
+            data_length = len(direction_sequence_data)
             if data_length > 2040:
                 continue
 
-            for coords_data, id_data, category_data, parent_data, direction_data \
-                    in zip(coords_sequence_data, id_sequence_data, category_sequence_data, parent_sequence,
-                           direction_sequence):
-                position_sequence.append(coords_data)
+            for direction_data, id_data, category_data \
+                    in zip(direction_sequence_data, id_sequence_data, category_sequence_data):
+                direction_sequence.append(direction_data)
                 id_sequence.append(id_data)
                 category_sequence.append(category_data)
 
-                next_parent_sequence.append(parent_data)
-                next_dir_sequence.append(dir_dict[direction_data])
-
-            pad_length = 2048 - 2 - data_length
+            pad_length = 2048 - data_length
             category_sequence = [category_to_index[value] for value in category_sequence]
-            dir_sequence = [0] + [0] + next_dir_sequence + [0] * pad_length
 
-            next_category_sequence = category_sequence[1:] + [1] + [2] * (pad_length + 2)
-            next_id_sequence = id_sequence[1:] + [0] + [0] * (pad_length + 2)
-            next_parent_sequence = [0] + next_parent_sequence + [0] + [0] * pad_length
-            next_dir_sequence = [0] + next_dir_sequence + [0] + [0] * pad_length
+            next_direction_sequence = direction_sequence + [0, 0, 0] * pad_length
+            next_id_sequence = id_sequence + [0] * pad_length
+            next_category_sequence = category_sequence + [1] + [0] * (pad_length - 1)
 
-            position_sequence = [[0, 0, 0]] + position_sequence + [[0, 0, 0]] + [[0, 0, 0]] * pad_length
-            id_sequence = [0] + id_sequence + [0] + [0] * pad_length
-            category_sequence = [0] + category_sequence + [1] + [2] * pad_length
+            direction_sequence = [0, 0, 0] + direction_sequence + [0, 0, 0] * (pad_length - 1)
+            id_sequence = [0] + id_sequence + [0] * (pad_length - 1)
+            category_sequence = [2] + category_sequence + [1] + [0] * (pad_length - 2)
 
-            pad_mask_sequence = [1] * (2048 - pad_length) + [0] * pad_length
+            pad_mask_sequence = [1] * (2048 - (pad_length - 2)) + [0] * (pad_length - 2)
 
             self.text_sequences.append(text_sequence)
 
-            self.direction_sequences.append(dir_sequence)
-            self.position_sequences.append(position_sequence)
+            self.direction_sequences.append(direction_sequence)
             self.id_sequences.append(id_sequence)
             self.category_sequences.append(category_sequence)
 
+            self.next_direction_sequences.append(next_direction_sequence)
             self.next_category_sequences.append(next_category_sequence)
             self.next_id_sequences.append(next_id_sequence)
-            self.next_parent_sequences.append(next_parent_sequence)
-            self.next_direction_sequences.append(next_dir_sequence)
 
             self.pad_mask_sequences.append(pad_mask_sequence)
 
+        self.data_length = len(self.direction_sequences)
+        print(f'{data_type}: {self.data_length}')
+
         self.min_val = None
         self.max_val = None
-        self.real_position_sequences = self.position_sequences
-        self.position_sequences = self.min_max_scaling(np.array(self.position_sequences))
-
-        self.data_length = len(self.position_sequences)
-        print(f'{data_type}: {self.data_length}')
+        self.direction_sequences = self.min_max_scaling(np.array(self.direction_sequences))
 
     def __getitem__(self, idx):
         text_sequence = self.text_sequences[idx]
 
         direction_sequence = self.direction_sequences[idx]
-        position_sequence = self.position_sequences[idx]
         id_sequence = self.id_sequences[idx]
         category_sequence = self.category_sequences[idx]
 
         next_category_sequence = self.next_category_sequences[idx]
         next_id_sequence = self.next_id_sequences[idx]
-        next_parent_sequence = self.next_parent_sequences[idx]
         next_direction_sequence = self.next_direction_sequences[idx]
 
-        real_position_sequence = self.real_position_sequences[idx]
         pad_mask_sequence = self.pad_mask_sequences[idx]
 
-        direction_sequence = torch.tensor(direction_sequence, dtype=torch.long)
-        position_sequence = torch.tensor(position_sequence, dtype=torch.float32)
+        direction_sequence = torch.tensor(direction_sequence, dtype=torch.float32)
         id_sequence = torch.tensor(id_sequence, dtype=torch.long)
         category_sequence = torch.tensor(category_sequence, dtype=torch.long)
 
+        next_direction_sequence = torch.tensor(next_direction_sequence, dtype=torch.float32)
         next_category_sequence = torch.tensor(next_category_sequence, dtype=torch.long)
         next_id_sequence = torch.tensor(next_id_sequence, dtype=torch.long)
-        next_parent_sequence = torch.tensor(next_parent_sequence, dtype=torch.long)
-        next_direction_sequence = torch.tensor(next_direction_sequence, dtype=torch.long)
 
-        real_position_sequence = torch.tensor(real_position_sequence, dtype=torch.long)
         pad_mask_sequence = torch.tensor(pad_mask_sequence, dtype=torch.bool)
 
-        return direction_sequence, position_sequence, id_sequence, category_sequence, next_category_sequence, \
-            next_id_sequence, next_parent_sequence, next_direction_sequence, real_position_sequence, \
-            pad_mask_sequence, text_sequence
+        return direction_sequence, id_sequence, category_sequence, next_direction_sequence, \
+            next_category_sequence, next_id_sequence, pad_mask_sequence, text_sequence
 
     def __len__(self):
         return self.data_length
 
-    def min_max_scaling(self, position_sequence):
+    def min_max_scaling(self, direction_sequence):
         if self.min_val is None:
-            self.min_val = np.min(position_sequence, axis=(0, 1))
-            self.max_val = np.max(position_sequence, axis=(0, 1))
+            self.min_val = np.min(direction_sequence, axis=(0, 1))
+            self.max_val = np.max(direction_sequence, axis=(0, 1))
 
-        scaled_position_sequence = (position_sequence - self.min_val) / (self.max_val - self.min_val)
-        scaled_position_sequence = scaled_position_sequence * 2 - 1
-        return scaled_position_sequence
-
-    def restore_min_max_scaling(self, scaled_position_sequence):
-        # [0, 1] 범위로 되돌리기
-        original_scale_sequence = (scaled_position_sequence + 1) / 2
-        # 원래의 범위로 복원
-        restored_position_sequence = original_scale_sequence * (self.max_val - self.min_val) + self.min_val
-        return restored_position_sequence
+        scaled_direction_sequence = (direction_sequence - self.min_val) / (self.max_val - self.min_val)
+        scaled_direction_sequence = scaled_direction_sequence * 2 - 1
+        return scaled_direction_sequence
