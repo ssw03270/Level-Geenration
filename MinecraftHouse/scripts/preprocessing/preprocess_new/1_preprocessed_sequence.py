@@ -108,6 +108,6 @@ if __name__ == '__main__':
 
 
     with open('../../../datasets/preprocessed/sequence_datasets.pkl', 'wb') as f:
-        pickle.dump({'direction_sequence': direction_sequences,
+        pickle.dump({'direction_sequences': direction_sequences,
                      'id_sequences': id_sequences,
                      'category_sequences': category_sequences}, f)

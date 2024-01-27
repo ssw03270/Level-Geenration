@@ -77,6 +77,8 @@ class CraftAssistDataset(Dataset):
             next_category_sequence = category_sequence + [1] + [0] * (pad_length - 1)
 
             direction_sequence = [0, 0, 0] + direction_sequence + [0, 0, 0] * (pad_length - 1)
+            print(direction_sequence)
+            print(len(direction_sequence))
             id_sequence = [0] + id_sequence + [0] * (pad_length - 1)
             category_sequence = [2] + category_sequence + [1] + [0] * (pad_length - 2)
 
@@ -100,6 +102,7 @@ class CraftAssistDataset(Dataset):
         self.min_val = None
         self.max_val = None
         self.direction_sequences = self.min_max_scaling(np.array(self.direction_sequences))
+        self.next_direction_sequences = self.min_max_scaling(np.array(self.next_direction_sequences))
 
     def __getitem__(self, idx):
         text_sequence = self.text_sequences[idx]
