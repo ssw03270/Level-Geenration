@@ -51,7 +51,7 @@ class TransformerDecoder(nn.Module):
         super(TransformerDecoder, self).__init__()
 
         self.position_encoding = nn.Linear(3, int(d_model / 2))
-        self.id_embedding = nn.Embedding(253, int(d_model / 4))
+        self.id_embedding = nn.Embedding(256, int(d_model / 4))
         self.category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
         self.pos_enc = PositionalEncoding(d_model, 2048)
@@ -92,7 +92,7 @@ class Transformer(nn.Module):
         self.category_fc = nn.Linear(d_model, 33 + 3)
 
         self.id_decoding = nn.Linear(d_model, d_model)
-        self.id_fc = nn.Linear(d_model, 253)
+        self.id_fc = nn.Linear(d_model, 256)
 
         self.position_decoding = nn.Linear(d_model, d_model)
         self.position_fc = nn.Linear(d_model, 3)
