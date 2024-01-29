@@ -52,8 +52,8 @@ def get_accuracy(pred, trg):
 
 def get_position_accuracy(pred, trg):
     # 예측값을 반올림
-    pred = torch.round(pred * 32)
-    trg = trg.reshape(-1, 3)
+    pred = torch.round(pred * 32).int()
+    trg = (trg.reshape(-1, 3) * 32).int()
 
     # (batch, seq, 3) 텐서에서 모든 요소가 일치하는지 확인
     correct_elements = (pred == trg).all(dim=-1)
@@ -65,25 +65,6 @@ def get_position_accuracy(pred, trg):
     total = len(pred)
 
     return correct, total
-
-def custom_collate(data_list):
-    batch_data = Data()
-
-    cumsum = 0
-    for i, data in enumerate(data_list):
-        num_nodes = data.num_nodes
-
-        temporal_edge_index = data.temporal_edge_index + cumsum
-        print(temporal_edge_index)
-        batch_data.temporal_edge_index = torch.cat([batch_data.temporal_edge_index, temporal_edge_index], dim=1) if i > 0 else temporal_edge_index
-
-        spatial_edge_index = data.spatial_edge_index + cumsum
-        batch_data.spatial_edge_index = torch.cat([batch_data.spatial_edge_index, spatial_edge_index], dim=1) if i > 0 else spatial_edge_index
-
-        batch_data.batch.append(torch.full((num_nodes,), i, dtype=torch.long))
-        cumsum += num_nodes
-
-    return batch_data
 
 class Trainer:
     def __init__(self, d_model, n_layer, batch_size, max_epoch,
@@ -119,9 +100,9 @@ class Trainer:
 
         # Dataset and Dataloader
         self.train_dataset = GraphDataset(data_type='train')
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=custom_collate)
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
         self.val_dataset = GraphDataset(data_type='validation')
-        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=True, collate_fn=custom_collate)
+        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=True)
 
         # Initialize the Transformer model
         self.graph_model = GraphModel(d_model, n_layer).to(self.device)
