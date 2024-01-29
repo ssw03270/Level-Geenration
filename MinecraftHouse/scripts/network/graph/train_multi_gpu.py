@@ -110,8 +110,7 @@ class Trainer:
 
         # Initialize the Transformer model
         self.graph_model = GraphModel(d_model, n_layer).to(self.device)
-        self.graph_model = nn.parallel.DistributedDataParallel(self.graph_model, device_ids=[self.local_rank],
-                                                               find_unused_parameters=True)
+        self.graph_model = nn.parallel.DistributedDataParallel(self.graph_model, device_ids=[self.local_rank])
         self.optimizer = torch.optim.Adam(self.graph_model.module.parameters(),
                                           lr=self.lr,
                                           betas=(0.9, 0.98))
