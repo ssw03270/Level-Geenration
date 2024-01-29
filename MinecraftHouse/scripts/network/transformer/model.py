@@ -52,7 +52,7 @@ class TransformerDecoder(nn.Module):
 
         self.position_encoding = nn.Linear(3, int(d_model / 2))
         self.id_embedding = nn.Embedding(257, int(d_model / 4))
-        self.category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
+        self.category_embedding = nn.Embedding(37, int(d_model / 4))
 
         self.pos_enc = PositionalEncoding(d_model, 2048)
         self.dropout = nn.Dropout(dropout)
@@ -89,7 +89,7 @@ class Transformer(nn.Module):
                                                 d_inner=d_hidden, dropout=dropout, use_additional_global_attn=False)
 
         self.category_decoding = nn.Linear(d_model, d_model)
-        self.category_fc = nn.Linear(d_model, 33 + 3)
+        self.category_fc = nn.Linear(d_model, 37)
 
         self.id_decoding = nn.Linear(d_model, d_model)
         self.id_fc = nn.Linear(d_model, 257)
