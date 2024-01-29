@@ -65,7 +65,8 @@ def get_accuracy(pred, trg, mask):
 
 def get_position_accuracy(pred, trg, mask):
     # 예측값을 반올림
-    pred = torch.round(pred)
+    pred = torch.round(pred * 32).int()
+    trg = (trg * 32).int()
 
     # (batch, seq, 3) 텐서에서 모든 요소가 일치하는지 확인
     correct_elements = (pred == trg).all(dim=-1)
@@ -77,8 +78,6 @@ def get_position_accuracy(pred, trg, mask):
     total = mask.sum().item()
 
     return correct, total
-
-
 
 class Trainer:
     def __init__(self, d_model, d_hidden, n_head, n_layer,

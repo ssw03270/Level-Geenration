@@ -72,15 +72,15 @@ class CraftAssistDataset(Dataset):
             pad_length = 2048 - data_length
             category_sequence = [category_to_index[value] for value in category_sequence]
 
-            next_position_sequence = position_sequence + [[0, 0, 0]] * pad_length
-            next_id_sequence = id_sequence + [0] * pad_length
-            next_category_sequence = category_sequence + [1] + [0] * (pad_length - 1)
+            next_position_sequence = position_sequence[1:] + [[0, 0, 0]] * (pad_length + 1)
+            next_id_sequence = id_sequence[1:] + [2] * (pad_length + 1)
+            next_category_sequence = category_sequence[1:] + [2] * (pad_length + 1)
 
-            position_sequence = [[0, 0, 0]] + position_sequence + [[0, 0, 0]] * (pad_length - 1)
-            id_sequence = [0] + id_sequence + [0] * (pad_length - 1)
-            category_sequence = [2] + category_sequence + [1] + [0] * (pad_length - 2)
+            position_sequence = position_sequence + [[0, 0, 0]] * pad_length
+            id_sequence = id_sequence + [2] * pad_length
+            category_sequence = category_sequence + [2] * pad_length
 
-            pad_mask_sequence = [1] * (2048 - (pad_length - 2)) + [0] * (pad_length - 2)
+            pad_mask_sequence = [1] * (2048 - (pad_length + 1)) + [0] * (pad_length + 1)
 
             self.text_sequences.append(text_sequence)
 
