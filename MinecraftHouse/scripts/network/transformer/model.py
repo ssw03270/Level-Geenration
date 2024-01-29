@@ -50,7 +50,7 @@ class TransformerDecoder(nn.Module):
     def __init__(self, n_layer, n_head, d_model, d_inner, dropout, use_additional_global_attn=False):
         super(TransformerDecoder, self).__init__()
 
-        self.direction_encoding = nn.Linear(3, int(d_model / 2))
+        self.position_encoding = nn.Linear(3, int(d_model / 2))
         self.id_embedding = nn.Embedding(253, int(d_model / 4))
         self.category_embedding = nn.Embedding(33 + 3, int(d_model / 4))
 
@@ -62,13 +62,13 @@ class TransformerDecoder(nn.Module):
             for _ in range(n_layer)
         ])
 
-    def forward(self, enc_input, direction_sequence, id_sequence, category_sequence,
+    def forward(self, enc_input, position_sequence, id_sequence, category_sequence,
                 enc_mask, dec_mask=None, local_mask=None, category_mask=None, id_mask=None):
-        direction_sequence = self.direction_encoding(direction_sequence)
+        position_sequence = self.position_encoding(position_sequence)
         id_sequence = self.id_embedding(id_sequence)
         category_sequence = self.category_embedding(category_sequence)
 
-        dec_input = torch.cat((direction_sequence, id_sequence, category_sequence), dim=-1)
+        dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
         dec_output = dec_input + self.pos_enc(dec_input)
         dec_output = self.dropout(dec_output)
 
@@ -94,8 +94,8 @@ class Transformer(nn.Module):
         self.id_decoding = nn.Linear(d_model, d_model)
         self.id_fc = nn.Linear(d_model, 253)
 
-        self.direction_decoding = nn.Linear(d_model, d_model)
-        self.direction_fc = nn.Linear(d_model, 3)
+        self.position_decoding = nn.Linear(d_model, d_model)
+        self.position_fc = nn.Linear(d_model, 3)
 
     def get_subsequent_mask(self, seq, diagonal):
         sz_b, len_s = seq.size()
@@ -103,7 +103,7 @@ class Transformer(nn.Module):
             torch.ones((1, len_s, len_s), device=seq.device), diagonal=diagonal)).bool()
         return subsequent_mask
 
-    def forward(self, text_sequence, direction_sequence, id_sequence, category_sequence,
+    def forward(self, text_sequence, position_sequence, id_sequence, category_sequence,
                 pad_mask_sequence):
         bert_input = text_sequence['input_ids']
         bert_mask = text_sequence['attention_mask']
@@ -116,7 +116,7 @@ class Transformer(nn.Module):
         sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
         global_mask = pad_mask_sequence & sub_mask_sequence
 
-        dec_output = self.block_decoder(bert_output, direction_sequence, id_sequence, category_sequence,
+        dec_output = self.block_decoder(bert_output, position_sequence, id_sequence, category_sequence,
                                         enc_mask=bert_mask, dec_mask=global_mask)
 
         decoded_category = self.category_decoding(dec_output)
@@ -129,8 +129,8 @@ class Transformer(nn.Module):
         decoded_id = self.id_fc(decoded_id)
         decoded_id = torch.softmax(decoded_id, dim=-1)
 
-        decoded_direction = self.direction_decoding(dec_output)
-        decoded_direction = torch.relu(decoded_direction)
-        decoded_direction = self.direction_fc(decoded_direction)
+        decoded_position = self.position_decoding(dec_output)
+        decoded_position = torch.relu(decoded_position)
+        decoded_position = self.position_fc(decoded_position)
 
-        return decoded_category, decoded_id, decoded_direction
+        return decoded_category, decoded_id, decoded_position

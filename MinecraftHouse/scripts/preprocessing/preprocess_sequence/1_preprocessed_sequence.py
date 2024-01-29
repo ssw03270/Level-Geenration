@@ -42,7 +42,7 @@ if __name__ == '__main__':
     annotated_schematics = data['annotated_schematics']
     annotation_lists = data['annotation_lists']
 
-    coords_sequences = []
+    position_sequences = []
     category_sequences = []
     id_sequences = []
 
@@ -66,41 +66,53 @@ if __name__ == '__main__':
         coords_sequence = []
         id_voxel_map = np.zeros((100, 100, 100))
 
+        schematic_sequence = [[x, y, z] for x in range(schematic.shape[0])
+                              for y in range(schematic.shape[1])
+                              for z in range(schematic.shape[2])
+                              if schematic[x, y, z] >= 1]
+
         for jdx in range(len(placed_list)):
             placed_tick = placed_list[jdx][0]
             placed_coord = (placed_list[jdx][2] + transform).tolist()
             placed_block = placed_list[jdx][3]
             placed_action = placed_list[jdx][4]
 
-            if placed_action == 'P':
-                if placed_coord in coords_sequence:
-                    coords_sequence.remove(placed_coord)
-                coords_sequence.append(placed_coord)
-                id_voxel_map[placed_coord[0], placed_coord[1], placed_coord[2]] = np.asarray(placed_block, dtype=np.uint8).astype(np.int64)[0]
+            if placed_coord in schematic_sequence:
+                if placed_action == 'P':
+                    if placed_coord in coords_sequence:
+                        coords_sequence.remove(placed_coord)
+                    coords_sequence.append(placed_coord)
+                    id_voxel_map[placed_coord[0], placed_coord[1], placed_coord[2]] = np.asarray(placed_block, dtype=np.uint8).astype(np.int64)[0]
 
-            elif placed_action == 'B':
-                if placed_coord in coords_sequence:
-                    coords_sequence.remove(placed_coord)
+                elif placed_action == 'B':
+                    if placed_coord in coords_sequence:
+                        coords_sequence.remove(placed_coord)
 
-        id_sequence = []
-        category_sequence = []
+        id_sequence = [0]
+        category_sequence = ['sos']
+        position_sequence = [[0, 0, 0]]
+
         for coord in coords_sequence:
             block_id = id_voxel_map[coord[0], coord[1], coord[2]]
-            id_sequence.append(block_id)
-            try:
-                category = annotation_list[int(annotated_schematic[coord[0], coord[1], coord[2]])]
-            except:
-                category = 'nothing'
+            id_sequence.append(block_id + 3)
+            
+            category = annotation_list[int(annotated_schematic[coord[0], coord[1], coord[2]])]
             category = vocab_mapping_function(category)
             category_sequence.append(category)
 
-        coords_sequences.append(coords_sequence)
+            position_sequence.append([(coord[0] + 1) / 32, (coord[1] + 1) / 32, (coord[2] + 1) / 32])
+
+        id_sequence.append(1)
+        category_sequence.append('eos')
+        position_sequence.append([0, 0, 0])
+
+        position_sequences.append(position_sequence)
         id_sequences.append(id_sequence)
         category_sequences.append(category_sequence)
 
 
-    print(len(coords_sequences))
+    print(len(position_sequences))
     with open('../../../datasets/preprocessed/sequence_datasets.pkl', 'wb') as f:
-        pickle.dump({'coords_sequences': coords_sequences,
+        pickle.dump({'position_sequences': position_sequences,
                      'id_sequences': id_sequences,
                      'category_sequences': category_sequences}, f)

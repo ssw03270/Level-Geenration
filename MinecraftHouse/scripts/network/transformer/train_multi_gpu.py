@@ -63,7 +63,7 @@ def get_accuracy(pred, trg, mask):
     return correct, total
 
 
-def get_direction_accuracy(pred, trg, mask):
+def get_position_accuracy(pred, trg, mask):
     # 예측값을 반올림
     pred = torch.round(pred)
 
@@ -158,15 +158,15 @@ class Trainer:
         #         wandb.watch(self.transformer.module, log='all')
 
         for epoch in range(epoch_start, self.max_epoch):
-            loss_dir_sum = torch.Tensor([0.0]).to(self.device)
+            loss_position_sum = torch.Tensor([0.0]).to(self.device)
             loss_id_sum = torch.Tensor([0.0]).to(self.device)
             loss_category_sum = torch.Tensor([0.0]).to(self.device)
 
-            true_dir_sums = torch.Tensor([0.0]).to(self.device)
+            true_position_sums = torch.Tensor([0.0]).to(self.device)
             true_id_sums = torch.Tensor([0.0]).to(self.device)
             true_category_sums = torch.Tensor([0.0]).to(self.device)
 
-            problem_dir_sums = torch.Tensor([0.0]).to(self.device)
+            problem_position_sums = torch.Tensor([0.0]).to(self.device)
             problem_id_sums = torch.Tensor([0.0]).to(self.device)
             problem_category_sums = torch.Tensor([0.0]).to(self.device)
 
@@ -176,26 +176,26 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 # Get the source and target sequences from the batch
-                direction_sequence, id_sequence, category_sequence, \
-                    next_direction_sequence, next_category_sequence, next_id_sequence, \
+                position_sequence, id_sequence, category_sequence, \
+                    next_position_sequence, next_category_sequence, next_id_sequence, \
                     pad_mask_sequence, text_sequence = data
 
                 text_sequence = self.tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
                 text_sequence = text_sequence.to(device=self.device)
 
-                direction_sequence = direction_sequence.to(device=self.device)
+                position_sequence = position_sequence.to(device=self.device)
                 id_sequence = id_sequence.to(device=self.device)
                 category_sequence = category_sequence.to(device=self.device)
 
                 next_category_sequence = next_category_sequence.to(device=self.device)
                 next_id_sequence = next_id_sequence.to(device=self.device)
-                next_direction_sequence = next_direction_sequence.to(device=self.device)
+                next_position_sequence = next_position_sequence.to(device=self.device)
 
                 pad_mask_sequence = pad_mask_sequence.to(device=self.device)
 
                 # Get the model's predictions
-                category_output, id_output, direction_output = self.transformer(text_sequence,
-                                                                                direction_sequence,
+                category_output, id_output, position_output = self.transformer(text_sequence,
+                                                                                position_sequence,
                                                                                 id_sequence,
                                                                                 category_sequence,
                                                                                 pad_mask_sequence)
@@ -204,19 +204,19 @@ class Trainer:
                 mask = pad_mask_sequence
                 loss_category = cross_entropy_loss(category_output, next_category_sequence.detach(), mask.detach())
                 loss_id = cross_entropy_loss(id_output, next_id_sequence.detach(), mask.detach())
-                loss_dir = mse_loss(direction_output, next_direction_sequence.detach(), mask.detach())
-                loss = loss_dir + loss_id + loss_category
+                loss_position = mse_loss(position_output, next_position_sequence.detach(), mask.detach())
+                loss = loss_position + loss_id + loss_category
 
                 # Backpropagation and optimization step
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
 
-                dist.all_reduce(loss_dir, op=dist.ReduceOp.SUM)
+                dist.all_reduce(loss_position, op=dist.ReduceOp.SUM)
                 dist.all_reduce(loss_id, op=dist.ReduceOp.SUM)
                 dist.all_reduce(loss_category, op=dist.ReduceOp.SUM)
 
-                loss_dir_sum += loss_dir.detach()
+                loss_position_sum += loss_position.detach()
                 loss_id_sum += loss_id.detach()
                 loss_category_sum += loss_category.detach()
 
@@ -236,39 +236,39 @@ class Trainer:
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
-                true_dir_sum, problem_dir_sum = get_direction_accuracy(direction_output.detach(),
-                                                                       next_direction_sequence.detach(),
+                true_position_sum, problem_position_sum = get_position_accuracy(position_output.detach(),
+                                                                       next_position_sequence.detach(),
                                                                        mask.detach())
-                dist.all_reduce(torch.tensor(true_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
-                dist.all_reduce(torch.tensor(problem_dir_sum).to(self.device), op=dist.ReduceOp.SUM)
-                true_dir_sums += true_dir_sum
-                problem_dir_sums += problem_dir_sum
+                dist.all_reduce(torch.tensor(true_position_sum).to(self.device), op=dist.ReduceOp.SUM)
+                dist.all_reduce(torch.tensor(problem_position_sum).to(self.device), op=dist.ReduceOp.SUM)
+                true_position_sums += true_position_sum
+                problem_position_sums += problem_position_sum
 
             if self.local_rank == 0:
                 loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
-                loss_dir_mean = loss_dir_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_position_mean = loss_position_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
                 true_category_mean = true_category_sums.item() / (problem_category_sums.item())
                 true_id_mean = true_id_sums.item() / (problem_id_sums.item())
-                true_dir_mean = true_dir_sums.item() / (problem_dir_sums.item())
+                true_position_mean = true_position_sums.item() / (problem_position_sums.item())
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE dir: {loss_dir_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE position: {loss_position_mean:.4f}")
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy dir: {true_dir_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy position: {true_position_mean:.4f}")
 
                 if self.use_wandb:
                     wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
                     wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
-                    wandb.log({"Train ce dir": loss_dir_mean}, step=epoch + 1)
+                    wandb.log({"Train ce position": loss_position_mean}, step=epoch + 1)
 
                     wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
-                    wandb.log({"Train accuracy dir": true_dir_mean}, step=epoch + 1)
+                    wandb.log({"Train accuracy position": true_position_mean}, step=epoch + 1)
 
                 if (epoch + 1) % self.save_epoch == 0:
                     # 체크포인트 데이터 준비

@@ -53,7 +53,7 @@ def sub_process(position_sequence, id_sequence, category_sequence, idx):
         }
 
         # 결과를 파일로 저장
-        output_file_path = f'../../../datasets/preprocessed_graph/graph/{idx}_{jdx}.pkl'
+        output_file_path = f'../../../datasets/preprocessed_graph/graph_pkl/{idx}_{jdx}.pkl'
         with open(output_file_path, 'wb') as file:
             pickle.dump(processed_data, file)
 

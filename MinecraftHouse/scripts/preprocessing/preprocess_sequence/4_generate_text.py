@@ -9,11 +9,11 @@ def create_id_name_dict(json_data):
     return id_name_dict
 
 if __name__ == '__main__':
-    training_data_path = '../../../datasets/preprocessed/reorder_sequence_datasets.pkl'
+    training_data_path = '../../../datasets/preprocessed/sequence_datasets.pkl'
     with open(training_data_path, 'rb') as f:
         data = pickle.load(f)
-        reorder_id_sequences = data['reorder_id_sequences']
-        reorder_category_sequences = data['reorder_category_sequences']
+        id_sequences = data['id_sequences']
+        category_sequences = data['category_sequences']
 
     block_id_path = '../../../datasets/blocks_273.json'
     with open(block_id_path, 'r') as file:
@@ -21,10 +21,10 @@ if __name__ == '__main__':
     id_dictionary = create_id_name_dict(block_id_json)
 
     output_texts = []
-    for reorder_id_sequence, reorder_category_sequence in zip(tqdm(reorder_id_sequences), reorder_category_sequences):
+    for id_sequence, category_sequence in zip(tqdm(id_sequences), category_sequences):
         input_texts = []
         input_dict = {}
-        for id, category in zip(reorder_id_sequence, reorder_category_sequence):
+        for id, category in zip(id_sequence, category_sequence):
             category_name = category
             try:
                 block_name = id_dictionary[id].replace('minecraft:', '') #.replace('_block', '') + '_block'
@@ -36,7 +36,7 @@ if __name__ == '__main__':
             if block_name not in input_dict[category_name]:
                 input_dict[category_name].append(block_name)
 
-        n_block = len(reorder_id_sequence)
+        n_block = len(id_sequence)
         output_text = f'This house is composed of almost <{n_block}> blocks. This house consists of '
 
         input_dict = sorted(input_dict.items(), key=lambda x: x[0])

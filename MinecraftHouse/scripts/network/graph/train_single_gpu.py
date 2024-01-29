@@ -54,6 +54,7 @@ def get_position_accuracy(pred, trg):
     # 예측값을 반올림
     pred = torch.round(pred * 32).int()
     trg = (trg.reshape(-1, 3) * 32).int()
+    print(pred, trg)
 
     # (batch, seq, 3) 텐서에서 모든 요소가 일치하는지 확인
     correct_elements = (pred == trg).all(dim=-1)

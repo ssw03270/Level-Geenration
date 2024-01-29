@@ -68,25 +68,36 @@ if __name__ == '__main__':
         except:
             continue
 
+        schematic_sequence = [[x, y, z] for x in range(schematic.shape[0])
+                              for y in range(schematic.shape[1])
+                              for z in range(schematic.shape[2])
+                              if schematic[x, y, z] >= 1]
+
         transform = calc_transformation(placed_list)
         coords_sequence = []
-        id_voxel_map = np.zeros((100, 100, 100))
+        id_voxel_map = np.zeros((32, 32, 32))
 
+        is_not_valid = False
         for jdx in range(len(placed_list)):
             placed_tick = placed_list[jdx][0]
             placed_coord = (placed_list[jdx][2] + transform).tolist()
             placed_block = placed_list[jdx][3]
             placed_action = placed_list[jdx][4]
 
-            if placed_action == 'P':
-                if placed_coord in coords_sequence:
-                    coords_sequence.remove(placed_coord)
-                coords_sequence.append(placed_coord)
-                id_voxel_map[placed_coord[0], placed_coord[1], placed_coord[2]] = np.asarray(placed_block, dtype=np.uint8).astype(np.int64)[0]
+            if placed_coord in schematic_sequence:
+                if placed_action == 'P':
+                    if placed_coord in coords_sequence:
+                        coords_sequence.remove(placed_coord)
+                    coords_sequence.append(placed_coord)
+                    id_voxel_map[placed_coord[0], placed_coord[1], placed_coord[2]] = np.asarray(placed_block, dtype=np.uint8).astype(np.int64)[0]
 
-            elif placed_action == 'B':
-                if placed_coord in coords_sequence:
-                    coords_sequence.remove(placed_coord)
+                elif placed_action == 'B':
+                    if placed_coord in coords_sequence:
+                        coords_sequence.remove(placed_coord)
+
+        has_negative = np.any(np.array(coords_sequence) < 0)
+        if has_negative:
+            print(np.array(coords_sequence))
 
         id_sequence = [0]
         category_sequence = ['sos']
@@ -98,6 +109,7 @@ if __name__ == '__main__':
             try:
                 category = annotation_list[int(annotated_schematic[coord[0], coord[1], coord[2]])]
             except:
+                print(111)
                 category = 'nothing'
             category = vocab_mapping_function(category)
             category_sequence.append(category)
@@ -122,8 +134,13 @@ if __name__ == '__main__':
 
         max_length = max(max_length, len(position_sequence))
 
+        print(position_sequence)
+        print(category_sequence)
+
     print(max_x, max_y, max_z)
     print(max_length)
+    print(len(position_sequences))
+
     with open('../../../datasets/preprocessed_graph/sequence_datasets.pkl', 'wb') as f:
         pickle.dump({'position_sequences': position_sequences,
                      'id_sequences': id_sequences,

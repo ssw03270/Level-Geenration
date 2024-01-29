@@ -79,7 +79,7 @@ class GraphModel(nn.Module):
         latent = self.aggregate(g_embed)
 
         position_output = torch.relu(self.position_decoding(latent))
-        position_output = torch.tanh(self.position_fc(position_output))
+        position_output = torch.sigmoid(self.position_fc(position_output))
 
         id_output = torch.relu(self.id_decoding(latent))
         id_output = torch.softmax(self.id_fc(id_output), dim=-1)
