@@ -9,3 +9,4 @@ models
 datasets
 output
 *.png
+*.pkl

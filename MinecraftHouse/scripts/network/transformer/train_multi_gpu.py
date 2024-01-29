@@ -278,7 +278,7 @@ class Trainer:
                         'optimizer_state_dict': self.optimizer.state_dict(),
                     }
 
-                    save_path = os.path.join("./models", self.save_dir_path)
+                    save_path = os.path.join("models", self.save_dir_path)
                     if not os.path.exists(save_path):
                         os.makedirs(save_path)
                     torch.save(checkpoint, os.path.join(save_path, "transformer_epoch_" + str(epoch + 1) + ".pth"))
@@ -318,7 +318,7 @@ if __name__ == '__main__':
         for key, value in wandb.config.items():
             setattr(opt, key, value)
 
-        save_path = os.path.join("./models", opt.save_dir_path)
+        save_path = os.path.join("models", opt.save_dir_path)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 

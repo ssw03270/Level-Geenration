@@ -16,9 +16,9 @@ class CraftAssistDataset(Dataset):
         self.data_type = data_type
 
         if data_type == 'train':
-            self.file_path = '../../../datasets/training_data2.pkl'
+            self.file_path = '../../../../datasets/training_data2.pkl'
         else:
-            self.file_path = '../../../datasets/training_data2.pkl'
+            self.file_path = '../../../../datasets/training_data2.pkl'
 
         self.position_sequences = []
         self.block_id_sequences = []

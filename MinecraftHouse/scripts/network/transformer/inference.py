@@ -80,8 +80,8 @@ def rendering(direction_sequence, semantic_sequence):
     fig = go.Figure()
     cur_coord = [0, 0, 0]
     for category, dir in zip(categorys, direction_sequence):
-        cur_coord = [cur_coord[0] + round(dir[0]), cur_coord[1] + round(dir[1]), cur_coord[2] + round(dir[2])]
-        category_mesh_data[category]['coords'].append(cur_coord)
+        cur_coord = [cur_coord[0] + dir[0], cur_coord[1] + dir[1], cur_coord[2] + dir[2]]
+        category_mesh_data[category]['coords'].append([cur_coord[0], cur_coord[2], cur_coord[1]])
 
     for category, coords in category_mesh_data.items():
         coord = coords['coords']
@@ -181,7 +181,7 @@ if __name__ == '__main__':
                 real_category_sequence.append(category_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_pad_mask_sequence.append(pad_mask_sequence[0, idx].cpu().detach().numpy().tolist())
 
-            real_direction_sequence = torch.tensor(real_direction_sequence, dtype=torch.long).to(device).unsqueeze(0)
+            real_direction_sequence = torch.tensor(real_direction_sequence, dtype=torch.float32).to(device).unsqueeze(0)
             real_id_sequence = torch.tensor(real_id_sequence, dtype=torch.long).to(device).unsqueeze(0)
             real_category_sequence = torch.tensor(real_category_sequence, dtype=torch.long).to(
                 device).unsqueeze(0)
@@ -195,12 +195,13 @@ if __name__ == '__main__':
             jdx = 0
             while True:
                 category_output, id_output, direction_output = transformer(text_sequence,
-                                                                           direction_sequence,
-                                                                           id_sequence,
-                                                                           category_sequence,
-                                                                           pad_mask_sequence)
+                                                                           real_direction_sequence,
+                                                                           real_id_sequence,
+                                                                           real_category_sequence,
+                                                                           real_pad_mask_sequence)
 
-                cur_dir = direction_output[:, -1].unsqueeze(0)
+                cur_dir = torch.round(direction_output[:, -1]).unsqueeze(0)
+                print(cur_dir, direction_output.shape)
                 real_direction_sequence = torch.cat((real_direction_sequence, cur_dir), dim=1)
 
                 cur_id = torch.argmax(id_output[:, -1], dim=-1).unsqueeze(0)
@@ -214,7 +215,7 @@ if __name__ == '__main__':
 
                 print(jdx, cur_category.cpu().detach().numpy()[0])
                 jdx += 1
-                if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 500:
+                if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 1500:
                     break
 
             rendering(real_direction_sequence, real_category_sequence)
