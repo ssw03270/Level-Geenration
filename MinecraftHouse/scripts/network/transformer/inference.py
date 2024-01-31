@@ -16,6 +16,7 @@ from model import Transformer
 from dataloader import CraftAssistDataset
 from train_single_gpu import get_accuracy, cross_entropy_loss
 
+
 def create_cube(center, size=1):
     # 정육면체의 중심에서 꼭지점으로의 방향 벡터
     dirs = np.array([[1, 1, -1],
@@ -50,10 +51,9 @@ def create_mesh(vertices_list, category, color):
     return mesh
 
 
-def rendering(direction_sequence, semantic_sequence):
-    print(direction_sequence)
-    direction_sequence = direction_sequence.squeeze().cpu().detach().numpy()
-    direction_sequence = train_dataset.restore_min_max_scaling(direction_sequence)
+def rendering(position_sequence, semantic_sequence):
+    position_sequence = torch.round(position_sequence * 32).squeeze().cpu().detach().numpy()
+    position_sequence = train_dataset.restore_min_max_scaling(position_sequence)
     semantic_sequence = semantic_sequence.squeeze().cpu().detach().numpy()
 
     categorys = []
@@ -78,9 +78,8 @@ def rendering(direction_sequence, semantic_sequence):
 
     category_mesh_data = {category: {'coords': []} for category in category_colors}
     fig = go.Figure()
-    cur_coord = [0, 0, 0]
-    for category, dir in zip(categorys, direction_sequence):
-        cur_coord = [cur_coord[0] + dir[0], cur_coord[1] + dir[1], cur_coord[2] + dir[2]]
+    for category, pos in zip(categorys, position_sequence):
+        cur_coord = [pos[0], pos[1], pos[2]]
         category_mesh_data[category]['coords'].append([cur_coord[0], cur_coord[2], cur_coord[1]])
 
     for category, coords in category_mesh_data.items():
@@ -150,59 +149,59 @@ if __name__ == '__main__':
         # Iterate over batches
         for idx, data in enumerate(tqdm(train_dataloader)):
             # Get the source and target sequences from the batch
-            direction_sequence, id_sequence, category_sequence, \
-                next_direction_sequence, next_category_sequence, next_id_sequence, \
+            position_sequence, id_sequence, category_sequence, \
+                next_position_sequence, next_category_sequence, next_id_sequence, \
                 pad_mask_sequence, text_sequence = data
 
             text_sequence = tokenizer(text_sequence, padding=True, truncation=True, return_tensors="pt")
             text_sequence = text_sequence.to(device=device)
 
-            direction_sequence = direction_sequence.to(device=device)
+            position_sequence = position_sequence.to(device=device)
             id_sequence = id_sequence.to(device=device)
             category_sequence = category_sequence.to(device=device)
 
             next_category_sequence = next_category_sequence.to(device=device)
             next_id_sequence = next_id_sequence.to(device=device)
-            next_direction_sequence = next_direction_sequence.to(device=device)
+            next_position_sequence = next_position_sequence.to(device=device)
 
             pad_mask_sequence = pad_mask_sequence.to(device=device)
 
-            real_direction_sequence = []
+            real_position_sequence = []
             real_id_sequence = []
             real_category_sequence = []
             real_pad_mask_sequence = []
 
-            for idx in range(len(direction_sequence[0])):
-                if idx > 50:
+            for idx in range(len(position_sequence[0])):
+                if idx > 5:
                     break
 
-                real_direction_sequence.append(direction_sequence[0, idx].cpu().detach().numpy().tolist())
+                real_position_sequence.append(position_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_id_sequence.append(id_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_category_sequence.append(category_sequence[0, idx].cpu().detach().numpy().tolist())
                 real_pad_mask_sequence.append(pad_mask_sequence[0, idx].cpu().detach().numpy().tolist())
 
-            real_direction_sequence = torch.tensor(real_direction_sequence, dtype=torch.float32).to(device).unsqueeze(0)
+            real_position_sequence = torch.tensor(real_position_sequence, dtype=torch.float32).to(device).unsqueeze(0)
             real_id_sequence = torch.tensor(real_id_sequence, dtype=torch.long).to(device).unsqueeze(0)
             real_category_sequence = torch.tensor(real_category_sequence, dtype=torch.long).to(
                 device).unsqueeze(0)
             real_pad_mask_sequence = torch.tensor(real_pad_mask_sequence, dtype=torch.bool).to(device).unsqueeze(0)
 
-            print(real_direction_sequence.shape, direction_sequence.shape)
+            print(real_position_sequence.shape, position_sequence.shape)
             print(real_id_sequence.shape, id_sequence.shape)
             print(real_category_sequence.shape, category_sequence.shape)
             print(real_pad_mask_sequence.shape, pad_mask_sequence.shape)
 
             jdx = 0
             while True:
-                category_output, id_output, direction_output = transformer(text_sequence,
-                                                                           real_direction_sequence,
-                                                                           real_id_sequence,
-                                                                           real_category_sequence,
-                                                                           real_pad_mask_sequence)
+                category_output, id_output, position_output = transformer(text_sequence,
+                                                                          real_position_sequence,
+                                                                          real_id_sequence,
+                                                                          real_category_sequence,
+                                                                          real_pad_mask_sequence)
 
-                cur_dir = torch.round(direction_output[:, -1]).unsqueeze(0)
-                print(cur_dir, direction_output.shape)
-                real_direction_sequence = torch.cat((real_direction_sequence, cur_dir), dim=1)
+                cur_position = torch.round(position_output[:, -1] * 32).unsqueeze(0)
+                print(cur_position, position_output.shape)
+                real_position_sequence = torch.cat((real_position_sequence, position_output[:, -1].unsqueeze(0)), dim=1)
 
                 cur_id = torch.argmax(id_output[:, -1], dim=-1).unsqueeze(0)
                 real_id_sequence = torch.cat((real_id_sequence, cur_id), dim=1)
@@ -218,18 +217,18 @@ if __name__ == '__main__':
                 if cur_category.cpu().detach().numpy()[0] == 1 or jdx > 1500:
                     break
 
-            rendering(real_direction_sequence, real_category_sequence)
+            rendering(real_position_sequence, real_category_sequence)
 
             # Compute the losses
             # mask = real_pad_mask_sequence & real_terrain_mask_sequence
             # loss_parent = cross_entropy_loss(real_parent_sequence, parent_sequence.detach(), mask.detach())
-            # loss_dir = cross_entropy_loss(real_direction_sequence, direction_sequence.detach(), mask.detach())
+            # loss_dir = cross_entropy_loss(real_position_sequence, position_sequence.detach(), mask.detach())
             # loss_id = cross_entropy_loss(real_id_sequence[:, :-1], id_sequence[:, 1:].detach(), mask[:, 1:].detach())
             # loss_category = cross_entropy_loss(real_category_sequence[:, :-1], category_sequence[:, 1:].detach(), mask[:, 1:].detach())
             #
             # true_parent_sum, problem_parent_sum = get_accuracy(real_parent_sequence.detach(), parent_sequence.detach(),
             #                                                    mask.detach())
-            # true_direction_sum, problem_direction_sum = get_accuracy(real_direction_sequence.detach(), direction_sequence.detach(), mask.detach())
+            # true_direction_sum, problem_direction_sum = get_accuracy(real_position_sequence.detach(), position_sequence.detach(), mask.detach())
             # true_id_sum, problem_id_sum = get_accuracy(real_id_sequence[:, :-1].detach(),
             #                                            id_sequence[:, 1:].detach(), mask[:, 1:].detach())
             # true_category_sum, problem_category_sum = get_accuracy(real_category_sequence[:, :-1].detach(),
