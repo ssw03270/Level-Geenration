@@ -186,20 +186,20 @@ class Trainer:
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE pos: {loss_pos_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE position: {loss_pos_mean:.4f}")
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy pos: {true_pos_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy position: {true_pos_mean:.4f}")
 
                 if self.use_wandb:
                     wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
                     wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
-                    wandb.log({"Train ce pos": loss_pos_mean}, step=epoch + 1)
+                    wandb.log({"Train ce position": loss_pos_mean}, step=epoch + 1)
 
                     wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
-                    wandb.log({"Train accuracy pos": true_pos_mean}, step=epoch + 1)
+                    wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
 
                 if (epoch + 1) % self.save_epoch == 0:
                     checkpoint = {
