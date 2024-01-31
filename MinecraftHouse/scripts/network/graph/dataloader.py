@@ -11,8 +11,8 @@ class GraphDataset(Dataset):
 
         self.data_type = data_type
 
-        self.folder_path = '../../../datasets/preprocessed_graph/graph_gpickle'
-        # self.folder_path = '/local_datasets/graph_gpickle'
+        # self.folder_path = '../../../datasets/preprocessed_graph/graph_gpickle'
+        self.folder_path = '/local_datasets/graph_gpickle'
 
         all_file_paths = []
         for filename in tqdm(os.listdir(self.folder_path)):
