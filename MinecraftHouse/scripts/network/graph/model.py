@@ -18,21 +18,22 @@ class GraphModel(nn.Module):
 
         self.node_encoding = nn.Linear(d_model * 4, d_model)
 
-        self.convlayer = lambda in_channels, out_channels: torch_geometric.nn.GINConv(
-                nn.Sequential(
-                    nn.Linear(in_channels, out_channels),
-                    nn.ReLU(),
-                    nn.Linear(out_channels, out_channels)
-                )
+        self.conv_gcn = torch_geometric.nn.GCNConv
+        self.conv_gin = lambda in_channels, out_channels: torch_geometric.nn.GINConv(
+            nn.Sequential(
+                nn.Linear(in_channels, out_channels),
+                nn.ReLU(),
+                nn.Linear(out_channels, out_channels)
             )
+        )
         self.global_pool = torch_geometric.nn.global_max_pool
 
-        self.t_conv1 = self.convlayer(d_model, d_model)
-        self.s_conv1 = self.convlayer(d_model, d_model)
+        self.t_conv1 = self.conv_gcn(d_model, d_model)
+        self.s_conv1 = self.conv_gin(d_model, d_model)
         self.layer_stack = nn.ModuleList()
         for _ in range(self.n_layer - 1):
-            t_conv = self.convlayer(d_model, d_model)
-            s_conv = self.convlayer(d_model, d_model)
+            t_conv = self.conv_gcn(d_model, d_model)
+            s_conv = self.conv_gin(d_model, d_model)
             self.layer_stack.extend([t_conv, s_conv])
 
         self.aggregate = nn.Linear(int(d_model * (1.0 + self.n_layer)), d_model)
