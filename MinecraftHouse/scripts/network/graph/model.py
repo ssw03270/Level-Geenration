@@ -18,7 +18,13 @@ class GraphModel(nn.Module):
 
         self.node_encoding = nn.Linear(d_model * 4, d_model)
 
-        self.convlayer = torch_geometric.nn.GCNConv
+        self.convlayer = lambda in_channels, out_channels: torch_geometric.nn.GINConv(
+                nn.Sequential(
+                    nn.Linear(in_channels, out_channels),
+                    nn.ReLU(),
+                    nn.Linear(out_channels, out_channels)
+                )
+            )
         self.global_pool = torch_geometric.nn.global_max_pool
 
         self.t_conv1 = self.convlayer(d_model, d_model)
