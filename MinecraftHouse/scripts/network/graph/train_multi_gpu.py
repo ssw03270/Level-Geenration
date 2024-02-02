@@ -139,7 +139,7 @@ class Trainer:
                 data = data.to(device=self.device)
                 # position_output, id_output, category_output = self.graph_model(data)
                 position_output, category_output = self.graph_model(data)
-                id_output = data['next_id'].detach()
+                id_output = data['next_id']
 
                 # Compute the losses
                 loss_category = cross_entropy_loss(category_output, data['next_category'].detach())
