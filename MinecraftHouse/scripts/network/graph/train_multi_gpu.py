@@ -143,7 +143,7 @@ class Trainer:
                 loss_category = cross_entropy_loss(category_output, data['next_category'].detach())
                 loss_id = cross_entropy_loss(id_output, data['next_id'].detach())
                 loss_pos = mse_loss(position_output, data['next_position'].detach())
-                loss = loss_pos + loss_id + loss_category
+                loss = loss_pos + loss_category # + loss_id
 
                 # Backpropagation and optimization step
                 loss.backward()
