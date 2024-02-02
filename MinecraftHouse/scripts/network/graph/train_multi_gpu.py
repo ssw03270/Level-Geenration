@@ -137,15 +137,13 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 data = data.to(device=self.device)
-                # position_output, id_output, category_output = self.graph_model(data)
-                position_output, category_output = self.graph_model(data)
-                id_output = data['next_id']
+                position_output, id_output, category_output = self.graph_model(data)
 
                 # Compute the losses
                 loss_category = cross_entropy_loss(category_output, data['next_category'].detach())
                 loss_id = cross_entropy_loss(id_output, data['next_id'].detach())
                 loss_pos = mse_loss(position_output, data['next_position'].detach())
-                loss = loss_pos + loss_category # + loss_id
+                loss = loss_pos + loss_id + loss_category
 
                 # Backpropagation and optimization step
                 loss.backward()
@@ -221,7 +219,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=256, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=5, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")

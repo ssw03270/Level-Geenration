@@ -11,11 +11,11 @@ class GraphModel(nn.Module):
         self.d_model = d_model
 
         self.position_encoding = nn.Linear(3, d_model)
-        # self.id_embedding = nn.Embedding(256, d_model)
+        self.id_embedding = nn.Embedding(256, d_model)
         self.category_embedding = nn.Embedding(34, d_model)
         self.idx_embedding = nn.Embedding(3060, d_model)
 
-        self.node_encoding = nn.Linear(d_model * 3, d_model)
+        self.node_encoding = nn.Linear(d_model * 4, d_model)
 
         self.conv_gcn = torch_geometric.nn.GCNConv
         self.conv_gin = lambda in_channels, out_channels: torch_geometric.nn.GINConv(
@@ -40,8 +40,8 @@ class GraphModel(nn.Module):
         self.position_decoding = nn.Linear(d_model, d_model)
         self.position_fc = nn.Linear(d_model, 3)
 
-        # self.id_decoding = nn.Linear(d_model, d_model)
-        # self.id_fc = nn.Linear(d_model, 256)
+        self.id_decoding = nn.Linear(d_model, d_model)
+        self.id_fc = nn.Linear(d_model, 256)
 
         self.category_decoding = nn.Linear(d_model, d_model)
         self.category_fc = nn.Linear(d_model, 34)
@@ -54,16 +54,16 @@ class GraphModel(nn.Module):
         spatial_edges = edge_index[:, edge_attr == 0]
 
         position_feature = data.position_feature
-        # id_feature = data.id_feature
+        id_feature = data.id_feature
         category_feature = data.category_feature
         idx_feature = data.idx_feature
 
         position_feature = torch.relu(self.position_encoding(position_feature))
-        # id_feature = torch.relu(self.id_embedding(id_feature))
+        id_feature = torch.relu(self.id_embedding(id_feature))
         category_feature = torch.relu(self.category_embedding(category_feature))
         idx_feature = torch.relu(self.idx_embedding(idx_feature))
 
-        node_feature = F.relu(self.node_encoding(torch.cat([position_feature, # id_feature,
+        node_feature = F.relu(self.node_encoding(torch.cat([position_feature, id_feature,
                                                             category_feature, idx_feature], dim=1)))
 
         n_embed_0 = node_feature
@@ -87,11 +87,10 @@ class GraphModel(nn.Module):
         position_output = torch.relu(self.position_decoding(latent))
         position_output = torch.sigmoid(self.position_fc(position_output))
 
-        # id_output = torch.relu(self.id_decoding(latent))
-        # id_output = torch.softmax(self.id_fc(id_output), dim=-1)
+        id_output = torch.relu(self.id_decoding(latent))
+        id_output = torch.softmax(self.id_fc(id_output), dim=-1)
 
         category_output = torch.relu(self.category_decoding(latent))
         category_output = torch.softmax((self.category_fc(category_output)), dim=-1)
 
-        # return position_output, id_output, category_output
-        return position_output, category_output
+        return position_output, id_output, category_output
