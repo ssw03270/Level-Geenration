@@ -33,7 +33,7 @@ def calc_transformation(placed_list):
     return transform
 
 if __name__ == '__main__':
-    file_path = '../../../datasets/preprocessed_graph/annotated_datasets.pkl'
+    file_path = '../../../datasets/legacy/preprocessed_graph/annotated_datasets.pkl'
     with open(file_path, 'rb') as file:
         data = pickle.load(file)
 
