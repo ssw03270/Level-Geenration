@@ -75,7 +75,6 @@ class Trainer:
 
         # Set the device for training
         self.device = torch.device(f'cuda:{self.local_rank}') if torch.cuda.is_available() else torch.device('cpu')
-        self.device = torch.device('cpu')
 
         # Dataset and Dataloader
         self.train_dataset = GraphDataset(data_type='val')

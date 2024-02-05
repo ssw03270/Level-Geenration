@@ -20,7 +20,7 @@ class LocalEncoder(nn.Module):
         self.batch_size = batch_size
         self.grid_size = grid_size
 
-        self.id_embedding = nn.Embedding(256, d_model)
+        self.id_embedding = nn.Embedding(266, d_model)
 
         self.layer1 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
         self.layer2 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
@@ -49,7 +49,7 @@ class GraphEncoder(nn.Module):
         self.d_model = d_model
 
         self.position_encoding = nn.Linear(3, d_model)
-        self.id_embedding = nn.Embedding(256, d_model)
+        self.id_embedding = nn.Embedding(266, d_model)
 
         self.node_encoding = nn.Linear(d_model * 2, d_model)
 
@@ -108,7 +108,7 @@ class GenerativeModel(nn.Module):
 
         self.pos_conv = Conv3DBNReLU(d_model, 1, kernel_size=1, padding=0)
 
-        self.id_fc = nn.Linear(d_model, 256)
+        self.id_fc = nn.Linear(d_model, 266)
 
     def forward(self, data):
         enc_local = self.local_encoder(data.local_grid)
