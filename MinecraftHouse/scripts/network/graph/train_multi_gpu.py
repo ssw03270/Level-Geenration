@@ -13,17 +13,10 @@ import numpy as np
 import random
 from tqdm import tqdm
 
-from model import GraphModel
+from model import GenerativeModel
 from dataloader import GraphDataset
 
 import wandb
-
-
-def mse_loss(pred, trg):
-    trg = trg.reshape(-1, 3)
-    loss = F.mse_loss(pred, trg)
-    return loss
-
 
 def cross_entropy_loss(pred, trg):
     """
@@ -46,23 +39,6 @@ def get_accuracy(pred, trg):
     pred = torch.argmax(pred, dim=-1)
     # 정확도 계산
     correct = (trg == pred).sum().item()
-    total = len(pred)
-
-    return correct, total
-
-
-def get_position_accuracy(pred, trg):
-    # 예측값을 반올림
-    pred = torch.round(pred.reshape(-1, 3) * 32).int()
-    trg = torch.round(trg.reshape(-1, 3) * 32).int()
-
-    # (batch, seq, 3) 텐서에서 모든 요소가 일치하는지 확인
-    correct_elements = (pred == trg).all(dim=-1)
-
-    # 마스크 적용 및 일치하는 요소의 개수 계산
-    correct = correct_elements.sum().item()
-
-    # 마스크에 의해 선택된 요소의 총 개수
     total = len(pred)
 
     return correct, total
@@ -108,12 +84,18 @@ class Trainer:
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, sampler=self.train_sampler,
                                            num_workers=8, pin_memory=True)
 
+        self.val_dataset = GraphDataset(data_type='val')
+        self.val_sampler = DistributedSampler(dataset=self.val_dataset,
+                                              num_replicas=torch.distributed.get_world_size(), rank=self.local_rank,
+                                              shuffle=True)
+        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, sampler=self.val_sampler,
+                                         num_workers=8, pin_memory=True)
+
         # Initialize the Transformer model
-        self.graph_model = GraphModel(d_model, n_layer).to(self.device)
-        self.graph_model = nn.parallel.DistributedDataParallel(self.graph_model, device_ids=[self.local_rank])
-        self.optimizer = torch.optim.Adam(self.graph_model.module.parameters(),
-                                          lr=self.lr,
-                                          betas=(0.9, 0.98))
+        self.generative_model = GenerativeModel(d_model, n_layer).to(self.device)
+        self.generative_model = nn.parallel.DistributedDataParallel(self.generative_model, device_ids=[self.local_rank])
+        self.optimizer = torch.optim.Adam(self.generative_model.module.parameters(),
+                                          lr=self.lr, betas=(0.9, 0.98))
 
     def train(self):
         epoch_start = 0
@@ -121,15 +103,12 @@ class Trainer:
         for epoch in range(epoch_start, self.max_epoch):
             loss_pos_sum = torch.Tensor([0.0]).to(self.device)
             loss_id_sum = torch.Tensor([0.0]).to(self.device)
-            loss_category_sum = torch.Tensor([0.0]).to(self.device)
 
             true_pos_sums = torch.Tensor([0.0]).to(self.device)
             true_id_sums = torch.Tensor([0.0]).to(self.device)
-            true_category_sums = torch.Tensor([0.0]).to(self.device)
 
             problem_pos_sums = torch.Tensor([0.0]).to(self.device)
             problem_id_sums = torch.Tensor([0.0]).to(self.device)
-            problem_category_sums = torch.Tensor([0.0]).to(self.device)
 
             # Iterate over batches
             for data in tqdm(self.train_dataloader):
@@ -137,13 +116,12 @@ class Trainer:
                 self.optimizer.zero_grad()
 
                 data = data.to(device=self.device)
-                position_output, id_output, category_output = self.graph_model(data)
+                position_output, id_output = self.generative_model(data)
 
                 # Compute the losses
-                loss_category = cross_entropy_loss(category_output, data['next_category'].detach())
-                loss_id = cross_entropy_loss(id_output, data['next_id'].detach())
-                loss_pos = mse_loss(position_output, data['next_position'].detach())
-                loss = loss_pos + loss_id + loss_category
+                loss_id = cross_entropy_loss(id_output, data['gt_id'].detach())
+                loss_pos = cross_entropy_loss(position_output, data['gt_grid'].detach())
+                loss = loss_pos + loss_id
 
                 # Backpropagation and optimization step
                 loss.backward()
@@ -151,60 +129,47 @@ class Trainer:
 
                 dist.all_reduce(loss_pos, op=dist.ReduceOp.SUM)
                 dist.all_reduce(loss_id, op=dist.ReduceOp.SUM)
-                dist.all_reduce(loss_category, op=dist.ReduceOp.SUM)
 
                 loss_pos_sum += loss_pos.detach()
                 loss_id_sum += loss_id.detach()
-                loss_category_sum += loss_category.detach()
 
-                true_category_sum, problem_category_sum = get_accuracy(category_output.detach(), data['next_category'].detach())
-                dist.all_reduce(torch.tensor(true_category_sum).to(self.device), op=dist.ReduceOp.SUM)
-                dist.all_reduce(torch.tensor(problem_category_sum).to(self.device), op=dist.ReduceOp.SUM)
-                true_category_sums += true_category_sum
-                problem_category_sums += problem_category_sum
-
-                true_id_sum, problem_id_sum = get_accuracy(id_output.detach(), data['next_id'].detach())
+                true_id_sum, problem_id_sum = get_accuracy(id_output.detach(), data['gt_id'].detach())
                 dist.all_reduce(torch.tensor(true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_id_sums += true_id_sum
                 problem_id_sums += problem_id_sum
 
-                true_pos_sum, problem_pos_sum = get_position_accuracy(position_output.detach(), data['next_position'].detach())
+                true_pos_sum, problem_pos_sum = get_accuracy(position_output.detach(),
+                                                             data['gt_grid'].detach())
                 dist.all_reduce(torch.tensor(true_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_pos_sums += true_pos_sum
                 problem_pos_sums += problem_pos_sum
 
             if self.local_rank == 0:
-                loss_category_mean = loss_category_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
                 loss_pos_mean = loss_pos_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
-                true_category_mean = true_category_sums.item() / (problem_category_sums.item())
                 true_id_mean = true_id_sums.item() / (problem_id_sums.item())
                 true_pos_mean = true_pos_sums.item() / (problem_pos_sums.item())
 
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE category: {loss_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE position: {loss_pos_mean:.4f}")
 
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy category: {true_category_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy position: {true_pos_mean:.4f}")
 
                 if self.use_wandb:
-                    wandb.log({"Train ce category": loss_category_mean}, step=epoch + 1)
                     wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
                     wandb.log({"Train ce position": loss_pos_mean}, step=epoch + 1)
 
-                    wandb.log({"Train accuracy category": true_category_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
 
                 if (epoch + 1) % self.save_epoch == 0:
                     checkpoint = {
                         'epoch': epoch,
-                        'model_state_dict': self.graph_model.module.state_dict(),
+                        'model_state_dict': self.generative_model.module.state_dict(),
                         'optimizer_state_dict': self.optimizer.state_dict(),
                     }
 
@@ -220,7 +185,7 @@ if __name__ == '__main__':
 
     # Define the arguments with their descriptions
     parser.add_argument("--d_model", type=int, default=256, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=5, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")

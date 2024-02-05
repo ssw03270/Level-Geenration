@@ -50,7 +50,10 @@ if __name__ == '__main__':
         block_pos_list = data['block_pos_list']
         block_id_list = data['block_id_list']
 
-        for idx in range(len(block_pos_list)):
+        valid_block_pos_list = []
+        valid_block_id_list = []
+
+        for idx in tqdm(range(len(block_pos_list))):
             pos_list = np.array(block_pos_list[idx])
             id_list = np.array(block_id_list[idx])
 
@@ -63,5 +66,20 @@ if __name__ == '__main__':
                 voxel_grid[pos[0], pos[1], pos[2]] = 1
 
             voxel_indices = bfs_3d(voxel_grid)
+            valid_pos_list = []
+            valid_id_list = []
             for jdx in range(len(pos_list)):
-                if
+                pos = pos_list[jdx].tolist()
+                id = id_list[jdx]
+                if pos in voxel_indices:
+                    valid_pos_list.append(pos)
+                    valid_id_list.append(id)
+
+            valid_block_pos_list.append(valid_pos_list)
+            valid_block_id_list.append(valid_id_list)
+
+        file_path = f'{root_dir}preprocessed_valid_{data_type}.pkl'
+        with open(file_path, 'wb') as f:
+            pickle.dump({'valid_block_pos_list': valid_block_pos_list,
+                         'valid_block_id_list': valid_block_id_list}, f)
+
