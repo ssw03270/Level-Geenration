@@ -27,6 +27,7 @@ class LocalEncoder(nn.Module):
 
     def forward(self, x):
         x = self.id_embedding(x)
+        print(x.shape)
         x = x.permute(0, 4, 1, 2, 3)
 
         x = self.layer1(x)
