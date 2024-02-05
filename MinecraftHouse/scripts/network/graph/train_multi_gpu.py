@@ -92,7 +92,7 @@ class Trainer:
                                          num_workers=8, pin_memory=True)
 
         # Initialize the Transformer model
-        self.generative_model = GenerativeModel(d_model, n_layer, batch_size).to(self.device)
+        self.generative_model = GenerativeModel(n_layer, d_model, batch_size).to(self.device)
         self.generative_model = nn.parallel.DistributedDataParallel(self.generative_model, device_ids=[self.local_rank])
         self.optimizer = torch.optim.Adam(self.generative_model.module.parameters(),
                                           lr=self.lr, betas=(0.9, 0.98))
