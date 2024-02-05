@@ -38,7 +38,7 @@ class GraphDataset(Dataset):
         edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
         gt_grid = torch.tensor(gt_grid, dtype=torch.long)
         gt_id = torch.tensor(gt_id, dtype=torch.long)
-        print(edge_index.shape)
+        print(idx, edge_index.shape)
 
         data = Data(local_grid=local_grid, position_feature=position_feature, id_feature=id_feature,
                     edge_index=edge_index, gt_grid=gt_grid, gt_id=gt_id, num_nodes=len(node_list))
