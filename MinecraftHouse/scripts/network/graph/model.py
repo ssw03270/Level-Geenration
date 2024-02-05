@@ -29,7 +29,7 @@ class LocalEncoder(nn.Module):
 
     def forward(self, x):
         x = x.reshape(self.batch_size, -1)
-        x = self.id_embedding(x)
+        x = torch.relu(self.id_embedding(x))
         x = x.reshape(self.batch_size, self.grid_size, self.grid_size, self.grid_size, -1)
         x = x.permute(0, 4, 1, 2, 3)
 
@@ -70,7 +70,7 @@ class GraphEncoder(nn.Module):
         id_feature = data.id_feature
 
         position_feature = torch.relu(self.position_encoding(position_feature))
-        id_feature = torch.relu(self.id_embedding(id_feature))
+        id_feature = torch.relu(self.id_embedding(id_feature)).unsqueeze(1)
 
         node_feature = F.relu(self.node_encoding(torch.cat([position_feature, id_feature], dim=1)))
 
