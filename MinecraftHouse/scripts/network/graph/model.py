@@ -65,6 +65,7 @@ class GraphEncoder(nn.Module):
 
     def forward(self, data):
         edge_index = data.edge_index
+        print(edge_index.shape)
 
         position_feature = data.position_feature
         id_feature = data.id_feature
