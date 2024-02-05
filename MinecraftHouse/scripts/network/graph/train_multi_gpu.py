@@ -77,7 +77,7 @@ class Trainer:
         self.device = torch.device(f'cuda:{self.local_rank}') if torch.cuda.is_available() else torch.device('cpu')
 
         # Dataset and Dataloader
-        self.train_dataset = GraphDataset(data_type='train')
+        self.train_dataset = GraphDataset(data_type='val')
         self.train_sampler = DistributedSampler(dataset=self.train_dataset,
                                                 num_replicas=torch.distributed.get_world_size(), rank=self.local_rank,
                                                 shuffle=True)
@@ -92,7 +92,7 @@ class Trainer:
                                          num_workers=8, pin_memory=True)
 
         # Initialize the Transformer model
-        self.generative_model = GenerativeModel(d_model, n_layer).to(self.device)
+        self.generative_model = GenerativeModel(d_model, n_layer, batch_size).to(self.device)
         self.generative_model = nn.parallel.DistributedDataParallel(self.generative_model, device_ids=[self.local_rank])
         self.optimizer = torch.optim.Adam(self.generative_model.module.parameters(),
                                           lr=self.lr, betas=(0.9, 0.98))

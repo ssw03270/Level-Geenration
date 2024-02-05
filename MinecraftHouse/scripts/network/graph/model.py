@@ -13,10 +13,12 @@ class Conv3DBNReLU(nn.Module):
         return F.relu(self.bn(self.conv(x)))
 
 class LocalEncoder(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d_model, batch_size, grid_size):
         super(LocalEncoder, self).__init__()
 
         self.d_model = d_model
+        self.batch_size = batch_size
+        self.grid_size = grid_size
 
         self.id_embedding = nn.Embedding(256, d_model)
 
@@ -26,9 +28,9 @@ class LocalEncoder(nn.Module):
         self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
 
     def forward(self, x):
-        print(x.shape)
+        x = x.reshape(self.batch_size, -1)
         x = self.id_embedding(x)
-        print(x.shape)
+        x = x.reshape(self.batch_size, self.grid_size, self.grid_size, self.grid_size, -1)
         x = x.permute(0, 4, 1, 2, 3)
 
         x = self.layer1(x)
@@ -40,7 +42,7 @@ class LocalEncoder(nn.Module):
         return x
 
 class GraphEncoder(nn.Module):
-    def __init__(self, n_layer, d_model):
+    def __init__(self, n_layer, d_model, batch_size):
         super(GraphEncoder, self).__init__()
 
         self.n_layer = n_layer
@@ -91,15 +93,16 @@ class GraphEncoder(nn.Module):
         return latent
 
 class GenerativeModel(nn.Module):
-    def __init__(self, n_layer, d_model):
+    def __init__(self, n_layer, d_model, batch_size):
         super(GenerativeModel, self).__init__()
 
         self.n_layer = n_layer
         self.d_model = d_model
+        self.batch_size = batch_size
         self.grid_size = 7
 
-        self.local_encoder = LocalEncoder(d_model)
-        self.graph_encoder = GraphEncoder(n_layer, d_model)
+        self.local_encoder = LocalEncoder(d_model, batch_size, self.grid_size)
+        self.graph_encoder = GraphEncoder(n_layer, d_model, batch_size)
 
         self.conv = Conv3DBNReLU(d_model * 2, d_model, kernel_size=1, padding=0)
 
@@ -111,8 +114,7 @@ class GenerativeModel(nn.Module):
         enc_local = self.local_encoder(data.local_grid)
         enc_graph = self.graph_encoder(data)
 
-        batch_size = enc_graph.shape[0]
-        enc_graph = enc_graph.view(batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
+        enc_graph = enc_graph.view(self.batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
 
         enc_output = torch.cat((enc_local, enc_graph), dim=-1)
         enc_output = enc_output.permute(0, 4, 1, 2, 3)
