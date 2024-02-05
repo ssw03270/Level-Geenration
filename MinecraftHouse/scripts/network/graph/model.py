@@ -26,6 +26,7 @@ class LocalEncoder(nn.Module):
         self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
 
     def forward(self, x):
+        print(x.shape)
         x = self.id_embedding(x)
         print(x.shape)
         x = x.permute(0, 4, 1, 2, 3)
