@@ -69,8 +69,14 @@ class GraphEncoder(nn.Module):
         position_feature = data.position_feature
         id_feature = data.id_feature
 
+        print('position_feature', position_feature.shape)
+        print('id_feature', id_feature.shape)
+
         position_feature = torch.relu(self.position_encoding(position_feature))
         id_feature = torch.relu(self.id_embedding(id_feature)).unsqueeze(1)
+
+        print('position_feature', position_feature.shape)
+        print('id_feature', id_feature.shape)
 
         node_feature = F.relu(self.node_encoding(torch.cat([position_feature, id_feature], dim=1)))
 
