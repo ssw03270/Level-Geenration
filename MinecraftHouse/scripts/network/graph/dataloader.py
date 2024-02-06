@@ -31,6 +31,7 @@ class GraphDataset(Dataset):
         edge_index = self.edge_lists[idx]
         gt_grid = self.gt_grids[idx]
         gt_id = self.gt_ids[idx]
+        print(max(edge_index), len(node_list))
 
         local_grid = torch.tensor(local_grid, dtype=torch.long)
         position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32)
