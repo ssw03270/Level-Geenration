@@ -77,6 +77,7 @@ class GraphEncoder(nn.Module):
         n_embed_0 = node_feature
         g_embed_0 = self.global_pool(n_embed_0, data.batch)
 
+        print(torch.max(edge_index), torch.min(edge_index), data.num_nodes)
         n_embed_t = F.relu(self.conv1(n_embed_0, edge_index))
         g_embed_t = self.global_pool(n_embed_t, data.batch)
 
