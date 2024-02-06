@@ -80,7 +80,7 @@ class Trainer:
         self.train_dataset = GraphDataset(data_type='val')
         self.train_sampler = DistributedSampler(dataset=self.train_dataset,
                                                 num_replicas=torch.distributed.get_world_size(), rank=self.local_rank,
-                                                shuffle=False)
+                                                shuffle=True)
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, sampler=self.train_sampler,
                                            num_workers=8, pin_memory=True)
 

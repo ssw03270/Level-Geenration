@@ -5,7 +5,6 @@ import numpy as np
 import pickle
 import os
 
-
 class GraphDataset(Dataset):
     def __init__(self, data_type='train', transform=None, pre_transform=None):
         super(GraphDataset, self).__init__(transform, pre_transform)
@@ -24,6 +23,8 @@ class GraphDataset(Dataset):
 
         self.data_length = len(self.gt_ids)
         print(f'data_length: {self.data_length}')
+        print(self.node_lists[0])
+        print(self.edge_lists[0])
 
     def get(self, idx):
         local_grid = self.local_grids[idx]
