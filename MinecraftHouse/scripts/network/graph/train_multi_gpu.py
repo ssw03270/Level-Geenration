@@ -208,7 +208,7 @@ if __name__ == '__main__':
 
     if opt.local_rank == 0:
         wandb.login(key='0f272b4978c0b450c3765b24b8abd024d7799e80')
-        wandb.init(project='level-generation', entity='ssw03270', config=vars(opt), name=opt.save_dir_path)
+        wandb.init(project='level-generation', entity='city_team', config=vars(opt), name=opt.save_dir_path)
 
         for key, value in wandb.config.items():
             setattr(opt, key, value)
