@@ -7,7 +7,7 @@ import numpy as np
 def attention_mask(batch):
     """batch 벡터를 기반으로 마스크 행렬을 생성합니다."""
     mask = torch.eq(batch[:, None], batch[None, :])  # 같은 배치 내의 노드들에 대해서만 True
-    return mask
+    return mask.unsqueeze(0)
 
 class ScaledDotProductAttention(nn.Module):
     def __init__(self, temperature, attn_dropout=0.1):
@@ -20,7 +20,6 @@ class ScaledDotProductAttention(nn.Module):
         attn = torch.matmul(q / self.temperature, k.transpose(2, 3))
 
         if mask is not None:
-            print(q.shape, attn.shape, mask.shape)
             attn = attn.masked_fill(mask == 0, -1e9)
 
         attn = F.softmax(attn, dim=-1)
