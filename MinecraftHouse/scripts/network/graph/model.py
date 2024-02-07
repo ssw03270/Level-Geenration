@@ -116,7 +116,7 @@ class GraphEncoder(nn.Module):
         n_embed_t = node_feature
         g_embed = self.global_pool(n_embed_t, data.batch)
 
-        for layer_idx in range(len(self.layer_stack), 2):
+        for layer_idx in range(0, len(self.layer_stack), 2):
             n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
             n_embed_t = F.relu(self.layer_stack[layer_idx + 1](n_embed_t, data.batch))
             g_embed_t = self.global_pool(n_embed_t, data.batch)
