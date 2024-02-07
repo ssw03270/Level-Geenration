@@ -87,7 +87,7 @@ if __name__ == '__main__':
                     edge_list = [[0, 0]]
                     edge_lists.append(edge_list)
                 else:
-                    edge_list = edge_lists[-1]
+                    edge_list = edge_lists[-1].copy()
                     edge_list.append([idx, idx])
 
                     dirs = [[0, 0, -1], [0, 0, 1], [0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0]]
