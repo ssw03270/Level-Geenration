@@ -83,11 +83,10 @@ class Conv3DBNReLU(nn.Module):
         return F.relu(self.bn(self.conv(x)))
 
 class LocalEncoder(nn.Module):
-    def __init__(self, d_model, batch_size, grid_size):
+    def __init__(self, d_model, grid_size):
         super(LocalEncoder, self).__init__()
 
         self.d_model = d_model
-        self.batch_size = batch_size
         self.grid_size = grid_size
 
         self.id_embedding = nn.Embedding(300, d_model)
@@ -98,9 +97,11 @@ class LocalEncoder(nn.Module):
         self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
 
     def forward(self, x):
-        x = x.reshape(self.batch_size, -1)
+        batch_size = x.shape[0]
+
+        x = x.reshape(batch_size, -1)
         x = torch.relu(self.id_embedding(x))
-        x = x.reshape(self.batch_size, self.grid_size, self.grid_size, self.grid_size, -1)
+        x = x.reshape(batch_size, self.grid_size, self.grid_size, self.grid_size, -1)
         x = x.permute(0, 4, 1, 2, 3)
 
         x = self.layer1(x)
@@ -112,7 +113,7 @@ class LocalEncoder(nn.Module):
         return x
 
 class GraphEncoder(nn.Module):
-    def __init__(self, n_layer, d_model, batch_size):
+    def __init__(self, n_layer, d_model):
         super(GraphEncoder, self).__init__()
 
         self.n_layer = n_layer
@@ -178,16 +179,15 @@ class GraphEncoder(nn.Module):
         return latent
 
 class GenerativeModel(nn.Module):
-    def __init__(self, n_layer, d_model, batch_size):
+    def __init__(self, n_layer, d_model):
         super(GenerativeModel, self).__init__()
 
         self.n_layer = n_layer
         self.d_model = d_model
-        self.batch_size = batch_size
         self.grid_size = 7
 
-        self.local_encoder = LocalEncoder(d_model, batch_size, self.grid_size)
-        self.graph_encoder = GraphEncoder(n_layer, d_model, batch_size)
+        self.local_encoder = LocalEncoder(d_model, self.grid_size)
+        self.graph_encoder = GraphEncoder(n_layer, d_model)
 
         self.conv = Conv3DBNReLU(d_model * 2, d_model, kernel_size=1, padding=0)
 
@@ -196,10 +196,11 @@ class GenerativeModel(nn.Module):
         self.id_fc = nn.Linear(d_model, 300)
 
     def forward(self, data):
+        batch_size = data.local_grid.shape[0]
         enc_local = self.local_encoder(data.local_grid)
         enc_graph = self.graph_encoder(data)
 
-        enc_graph = enc_graph.view(self.batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
+        enc_graph = enc_graph.view(batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
 
         enc_output = torch.cat((enc_local, enc_graph), dim=-1)
         enc_output = enc_output.permute(0, 4, 1, 2, 3)
@@ -209,17 +210,17 @@ class GenerativeModel(nn.Module):
 
         torch.autograd.set_detect_anomaly(True)
         if self.training:
-            id_idx = data.gt_grid.reshape(self.batch_size, -1)
+            id_idx = data.gt_grid.reshape(batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
         else:
-            id_idx = pos_output.reshape(self.batch_size, -1)
+            id_idx = pos_output.reshape(batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
 
-        pos_output = pos_output.reshape(self.batch_size, -1)
+        pos_output = pos_output.reshape(batch_size, -1)
         pos_output = torch.softmax(pos_output, dim=-1)
 
-        batch_indices = torch.arange(0, self.batch_size, device=enc_output.device)
-        id_output = self.id_fc(enc_output.reshape(self.batch_size, self.d_model, -1)[batch_indices, :, id_idx])
+        batch_indices = torch.arange(0, batch_size, device=enc_output.device)
+        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[batch_indices, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
         return pos_output, id_output

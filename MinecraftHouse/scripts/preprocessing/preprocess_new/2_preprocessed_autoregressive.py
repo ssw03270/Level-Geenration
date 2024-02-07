@@ -22,6 +22,7 @@ if __name__ == '__main__':
         gt_ids = []
         train_mask = []
 
+        file_num = 0
         for pos_list, id_list in zip(tqdm(valid_block_pos_list), valid_block_id_list):
             voxel_grid = np.zeros((max(np.array(pos_list)[:, 0]) + 1,
                                    max(np.array(pos_list)[:, 1]) + 1,
@@ -99,16 +100,26 @@ if __name__ == '__main__':
 
                     edge_lists.append(edge_list)
 
-        local_grids = [item for item, mask in zip(local_grids, train_mask) if mask]
-        node_lists = [item for item, mask in zip(node_lists, train_mask) if mask]
-        edge_lists = [item for item, mask in zip(edge_lists, train_mask) if mask]
-        gt_grids = [item for item, mask in zip(gt_grids, train_mask) if mask]
-        gt_ids = [item for item, mask in zip(gt_ids, train_mask) if mask]
+                if train_mask[-1]:
+                    file_path = f'{root_dir}{data_type}/{file_num}.pkl'
+                    file_num += 1
+                    with open(file_path, 'wb') as f:
+                        pickle.dump({'local_grid': local_grid,
+                                     'node_list': node_list,
+                                     'edge_list': edge_list,
+                                     'gt_grid': gt_grid,
+                                     'gt_id': gt_id}, f)
 
-        file_path = f'{root_dir}{data_type}_dataset.pkl'
-        with open(file_path, 'wb') as f:
-            pickle.dump({'local_grids': local_grids,
-                         'node_lists': node_lists,
-                         'edge_lists': edge_lists,
-                         'gt_grids': gt_grids,
-                         'gt_ids': gt_ids}, f)
+        # local_grids = [item for item, mask in zip(local_grids, train_mask) if mask]
+        # node_lists = [item for item, mask in zip(node_lists, train_mask) if mask]
+        # edge_lists = [item for item, mask in zip(edge_lists, train_mask) if mask]
+        # gt_grids = [item for item, mask in zip(gt_grids, train_mask) if mask]
+        # gt_ids = [item for item, mask in zip(gt_ids, train_mask) if mask]
+        #
+        # file_path = f'{root_dir}{data_type}_dataset.pkl'
+        # with open(file_path, 'wb') as f:
+        #     pickle.dump({'local_grids': local_grids,
+        #                  'node_lists': node_lists,
+        #                  'edge_lists': edge_lists,
+        #                  'gt_grids': gt_grids,
+        #                  'gt_ids': gt_ids}, f)
