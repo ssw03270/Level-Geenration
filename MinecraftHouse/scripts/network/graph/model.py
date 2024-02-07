@@ -200,13 +200,9 @@ class GenerativeModel(nn.Module):
 
         enc_graph = enc_graph.view(self.batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
 
-        print(enc_local.shape, enc_graph.shape)
         enc_output = torch.cat((enc_local, enc_graph), dim=-1)
-        print(enc_output.shape)
         enc_output = enc_output.permute(0, 4, 1, 2, 3)
-        print(enc_output.shape)
         enc_output = self.conv(enc_output)
-        print(enc_output.shape)
 
         pos_output = self.pos_conv(enc_output).squeeze()
 
