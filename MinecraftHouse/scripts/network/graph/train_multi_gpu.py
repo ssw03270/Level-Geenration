@@ -118,7 +118,8 @@ class Trainer:
                 data = data.to(device=self.device)
                 position_output, id_output = self.generative_model(data)
 
-                gt_grid = data['gt_grid'].reshape(self.batch_size, -1)
+                batch_size = data['gt_grid'].shape[0] // 7
+                gt_grid = data['gt_grid'].reshape(batch_size, -1)
                 gt_grid = torch.argmax(gt_grid, dim=-1)
 
                 # Compute the losses
