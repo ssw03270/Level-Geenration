@@ -120,7 +120,7 @@ class Trainer:
 
                 # Compute the losses
                 loss_id = cross_entropy_loss(id_output, data['gt_id'].detach())
-                loss_pos = cross_entropy_loss(position_output, data['gt_grid'].detach())
+                loss_pos = cross_entropy_loss(position_output, torch.argmax(data['gt_grid'], dim=-1).detach())
                 loss = loss_pos + loss_id
 
                 # Backpropagation and optimization step
@@ -140,7 +140,7 @@ class Trainer:
                 problem_id_sums += problem_id_sum
 
                 true_pos_sum, problem_pos_sum = get_accuracy(position_output.detach(),
-                                                             data['gt_grid'].detach())
+                                                             torch.argmax(data['gt_grid'], dim=-1).detach())
                 dist.all_reduce(torch.tensor(true_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_pos_sums += true_pos_sum
