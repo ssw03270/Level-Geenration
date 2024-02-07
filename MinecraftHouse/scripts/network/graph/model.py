@@ -99,7 +99,7 @@ class GraphEncoder(nn.Module):
             else:
                 sinusoid_tables = sinusoid_table
 
-        return torch.Tensor(sinusoid_tables)
+        return torch.Tensor(sinusoid_tables).to(device=data.id_feature.device)
 
     def forward(self, data):
         edge_index = data.edge_index
