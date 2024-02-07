@@ -195,6 +195,7 @@ class GenerativeModel(nn.Module):
         self.id_fc = nn.Linear(d_model, 300)
 
     def forward(self, data):
+        torch.autograd.set_detect_anomaly(True)
         enc_local = self.local_encoder(data.local_grid)
         enc_graph = self.graph_encoder(data)
 
