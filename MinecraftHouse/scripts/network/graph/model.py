@@ -122,7 +122,7 @@ class GraphEncoder(nn.Module):
             g_embed_t = self.global_pool(n_embed_t, data.batch)
 
             g_embed = torch.cat((g_embed, g_embed_t), dim=1)
-
+            print(g_embed.shape)
         latent = self.aggregate(g_embed)
 
         return latent
