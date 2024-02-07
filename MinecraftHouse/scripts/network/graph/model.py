@@ -97,8 +97,7 @@ class LocalEncoder(nn.Module):
         self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
 
     def forward(self, x):
-        batch_size = x.shape[0]
-        print(x.shape, batch_size)
+        batch_size = x.shape[0] // self.grid_size
 
         x = x.reshape(batch_size, -1)
         x = torch.relu(self.id_embedding(x))
