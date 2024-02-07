@@ -72,7 +72,7 @@ class MultiHeadAttention(nn.Module):
         q += residual
         q = self.layer_norm(q)
 
-        return q, attn
+        return q
 class Conv3DBNReLU(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
         super(Conv3DBNReLU, self).__init__()
