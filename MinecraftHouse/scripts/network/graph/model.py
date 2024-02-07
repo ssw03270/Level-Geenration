@@ -30,7 +30,7 @@ class ScaledDotProductAttention(nn.Module):
         return output, attn
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_head=8, d_model=512, dropout=0.1):
+    def __init__(self, n_head=4, d_model=512, dropout=0.1):
         super(MultiHeadAttention, self).__init__()
 
         self.n_head = n_head

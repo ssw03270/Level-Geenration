@@ -189,7 +189,7 @@ if __name__ == '__main__':
     # Define the arguments with their descriptions
     parser.add_argument("--d_model", type=int, default=256, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
+    parser.add_argument("--batch_size", type=int, default=2, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
     parser.add_argument("--use_wandb", type=bool, default=True, help="Use tensorboard.")
