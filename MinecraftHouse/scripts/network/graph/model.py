@@ -121,7 +121,7 @@ class GraphEncoder(nn.Module):
         self.position_encoding = nn.Linear(3, d_model)
         self.id_embedding = nn.Embedding(300, d_model)
 
-        self.node_encoding = nn.Linear(d_model * 2, d_model)
+        self.node_encoding = nn.Linear(d_model * 3, d_model)
 
         self.conv_gcn = torch_geometric.nn.GCNConv
         self.global_pool = torch_geometric.nn.global_max_pool
@@ -158,10 +158,10 @@ class GraphEncoder(nn.Module):
 
         position_feature = F.relu(self.position_encoding(position_feature))
         id_feature = F.relu(self.id_embedding(id_feature)).squeeze(1)
+        positional_feature = self.positional_encoding(data)
 
-        node_feature = torch.cat([position_feature, id_feature], dim=1)
+        node_feature = torch.cat([position_feature, id_feature, positional_feature], dim=1)
         node_feature = F.relu(self.node_encoding(node_feature))
-        node_feature += self.positional_encoding(data)
 
         n_embed_t = node_feature
         g_embed = self.global_pool(n_embed_t, data.batch)
