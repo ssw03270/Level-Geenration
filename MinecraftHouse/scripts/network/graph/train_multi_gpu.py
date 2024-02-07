@@ -29,6 +29,7 @@ def cross_entropy_loss(pred, trg):
     Returns:
     - torch.Tensor: Computed BCE loss.
     """
+    print(pred.shape, trg.shape)
     loss = F.cross_entropy(pred, trg)
 
     return loss
