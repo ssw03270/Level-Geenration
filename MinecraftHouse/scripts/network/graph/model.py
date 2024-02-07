@@ -9,21 +9,70 @@ def attention_mask(batch):
     mask = torch.eq(batch[:, None], batch[None, :])  # 같은 배치 내의 노드들에 대해서만 True
     return mask
 
-class MaskedGlobalAttention(nn.Module):
-    def __init__(self, in_channels, out_channels, num_heads=4):
-        super().__init__()
-        self.attention = nn.MultiheadAttention(embed_dim=in_channels, num_heads=num_heads, batch_first=True)
-        self.linear = nn.Linear(in_channels, out_channels)
+class ScaledDotProductAttention(nn.Module):
+    def __init__(self, temperature, attn_dropout=0.1):
+        super(ScaledDotProductAttention, self).__init__()
+
+        self.temperature = temperature
+        self.dropout = nn.Dropout(attn_dropout)
+
+    def forward(self, q, k, v, mask=None):
+        attn = torch.matmul(q / self.temperature, k.transpose(2, 3))
+
+        if mask is not None:
+            attn = attn.masked_fill(mask == 0, -1e9)
+
+        attn = F.softmax(attn, dim=-1)
+        attn = self.dropout(attn)
+
+        output = torch.matmul(attn, v)
+
+        return output, attn
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, n_head=8, d_model=512, dropout=0.1):
+        super(MultiHeadAttention, self).__init__()
+
+        self.n_head = n_head
+        self.d_model = d_model
+
+        self.w_q = nn.Linear(d_model, d_model, bias=False)
+        self.w_k = nn.Linear(d_model, d_model, bias=False)
+        self.w_v = nn.Linear(d_model, d_model, bias=False)
+        self.fc = nn.Linear(d_model, d_model, bias=False)
+
+        self.attention = ScaledDotProductAttention(temperature=d_model // n_head ** 0.5)
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
 
     def forward(self, x, batch):
         mask = attention_mask(batch).to(x.device)  # 마스크 생성
+        q = x
+        k = x
+        v = x
 
-        # attn_mask 대신 key_padding_mask를 사용할 경우, 마스크 반전이 필요하지 않음
-        attn_output, _ = self.attention(x, x, x, key_padding_mask=mask)
+        d_k, d_v, n_head = self.d_model // self.n_head, self.d_model // self.n_head, self.n_head
+        sz_b, len_q, len_k, len_v = q.size(0), q.size(1), k.size(1), v.size(1)
+        residual = q
 
-        out = self.linear(attn_output)
-        return out
+        q = self.w_q(q).view(1, sz_b, n_head, d_k)
+        k = self.w_k(k).view(1, sz_b, n_head, d_k)
+        v = self.w_v(v).view(1, sz_b, n_head, d_k)
 
+        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+
+        if mask is not None:
+            mask = mask.unsqueeze(1)
+
+        q, attn = self.attention(q, k, v, mask=mask)
+
+        q = q.transpose(1, 2).contiguous().view(sz_b, -1)
+        q = self.fc(q)
+        q = self.dropout(q)
+        q += residual
+        q = self.layer_norm(q)
+
+        return q, attn
 class Conv3DBNReLU(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
         super(Conv3DBNReLU, self).__init__()
@@ -80,7 +129,7 @@ class GraphEncoder(nn.Module):
         self.layer_stack = nn.ModuleList()
         for _ in range(self.n_layer):
             self.layer_stack.append(self.conv_gcn(d_model, d_model))
-            self.layer_stack.append(MaskedGlobalAttention(d_model, d_model))
+            self.layer_stack.append(MultiHeadAttention(d_model=d_model))
 
         self.aggregate = nn.Linear(int(d_model * (1.0 + self.n_layer)), d_model)
 
