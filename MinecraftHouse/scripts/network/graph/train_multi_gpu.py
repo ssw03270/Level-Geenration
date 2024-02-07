@@ -29,7 +29,6 @@ def cross_entropy_loss(pred, trg):
     Returns:
     - torch.Tensor: Computed BCE loss.
     """
-    print(pred.shape, trg.shape)
     loss = F.cross_entropy(pred, trg)
 
     return loss
@@ -119,9 +118,12 @@ class Trainer:
                 data = data.to(device=self.device)
                 position_output, id_output = self.generative_model(data)
 
+                gt_grid = data['gt_grid'].reshape(self.batch_size, -1)
+                gt_grid = torch.argmax(gt_grid, dim=-1)
+
                 # Compute the losses
                 loss_id = cross_entropy_loss(id_output, data['gt_id'].detach())
-                loss_pos = cross_entropy_loss(position_output, torch.argmax(data['gt_grid'], dim=-1).detach())
+                loss_pos = cross_entropy_loss(position_output, gt_grid.detach())
                 loss = loss_pos + loss_id
 
                 # Backpropagation and optimization step
@@ -141,7 +143,7 @@ class Trainer:
                 problem_id_sums += problem_id_sum
 
                 true_pos_sum, problem_pos_sum = get_accuracy(position_output.detach(),
-                                                             torch.argmax(data['gt_grid'], dim=-1).detach())
+                                                             gt_grid.detach())
                 dist.all_reduce(torch.tensor(true_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                 true_pos_sums += true_pos_sum
