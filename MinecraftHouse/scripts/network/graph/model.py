@@ -208,19 +208,16 @@ class GenerativeModel(nn.Module):
 
         if self.training:
             id_idx = data.gt_grid.reshape(self.batch_size, -1)
-            print(id_idx.shape)
             id_idx = torch.argmax(id_idx, dim=-1)
-            print(id_idx)
         else:
             id_idx = pos_output.reshape(self.batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
 
         pos_output = pos_output.reshape(self.batch_size, -1)
         pos_output = torch.softmax(pos_output, dim=-1)
-        print(enc_output.shape)
-        print(enc_output.reshape(self.batch_size, self.d_model, -1).shape)
-        print(enc_output.reshape(self.batch_size, self.d_model, -1)[:, :, id_idx].shape)
-        id_output = self.id_fc(enc_output.reshape(self.batch_size, self.d_model, -1)[:, :, id_idx])
+
+        batch_indices = torch.arange(0, self.batch_size, device=enc_output.device)
+        id_output = self.id_fc(enc_output.reshape(self.batch_size, self.d_model, -1)[batch_indices, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
         return pos_output, id_output
