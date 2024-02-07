@@ -5,7 +5,7 @@ import time
 
 if __name__ == '__main__':
     root_dir = '../../../datasets/preprocessed/'
-    data_types = ['train', 'val', 'test']
+    data_types = ['val', 'test']
 
     for data_type in data_types:
         file_path = f'{root_dir}preprocessed_valid_{data_type}.pkl'
