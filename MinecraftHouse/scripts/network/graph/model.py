@@ -196,7 +196,6 @@ class GenerativeModel(nn.Module):
         self.id_fc = nn.Linear(d_model, 300)
 
     def forward(self, data):
-        torch.autograd.set_detect_anomaly(True)
         enc_local = self.local_encoder(data.local_grid)
         enc_graph = self.graph_encoder(data)
 
@@ -208,6 +207,7 @@ class GenerativeModel(nn.Module):
 
         pos_output = self.pos_conv(enc_output).squeeze()
 
+        torch.autograd.set_detect_anomaly(True)
         if self.training:
             id_idx = data.gt_grid.reshape(self.batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
