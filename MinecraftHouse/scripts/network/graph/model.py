@@ -98,6 +98,7 @@ class LocalEncoder(nn.Module):
 
     def forward(self, x):
         batch_size = x.shape[0]
+        print(x.shape, batch_size)
 
         x = x.reshape(batch_size, -1)
         x = torch.relu(self.id_embedding(x))
