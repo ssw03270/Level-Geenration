@@ -211,16 +211,16 @@ class GenerativeModel(nn.Module):
         pos_output = self.pos_conv(enc_output).squeeze()
 
         if self.training:
-            id_idx = torch.flatten(data.gt_grid, 1)
+            id_idx = data.gt_grid.reshape(self.batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
         else:
-            id_idx = torch.flatten(pos_output, 1)
+            id_idx = pos_output.reshape(self.batch_size, -1)
             id_idx = torch.argmax(id_idx, dim=-1)
 
-        pos_output = torch.flatten(pos_output, 1)
+        pos_output = pos_output.reshape(self.batch_size, -1)
         pos_output = torch.softmax(pos_output, dim=-1)
 
-        id_output = self.id_fc(enc_output[:, id_idx])
+        id_output = self.id_fc(enc_output.reshape(self.batch_size, self.d_model, -1)[:, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
         return pos_output, id_output
