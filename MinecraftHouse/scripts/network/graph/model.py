@@ -19,7 +19,7 @@ class MaskedGlobalAttention(nn.Module):
         mask = attention_mask(batch).to(x.device)  # 마스크 생성
 
         # attn_mask 대신 key_padding_mask를 사용할 경우, 마스크 반전이 필요하지 않음
-        attn_output, _ = self.attention(x, x, x, key_padding_mask=~mask)
+        attn_output, _ = self.attention(x, x, x, key_padding_mask=mask)
 
         out = self.linear(attn_output)
         return out

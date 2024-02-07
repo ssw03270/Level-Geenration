@@ -23,8 +23,6 @@ class GraphDataset(Dataset):
 
         self.data_length = len(self.gt_ids)
         print(f'data_length: {self.data_length}')
-        print(self.node_lists[0])
-        print(self.edge_lists[0])
 
     def get(self, idx):
         local_grid = self.local_grids[idx]
