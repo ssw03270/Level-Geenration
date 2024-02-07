@@ -196,7 +196,7 @@ class GenerativeModel(nn.Module):
         self.id_fc = nn.Linear(d_model, 300)
 
     def forward(self, data):
-        batch_size = data.local_grid.shape[0]
+        batch_size = data.local_grid.shape[0] // self.grid_size
         enc_local = self.local_encoder(data.local_grid)
         enc_graph = self.graph_encoder(data)
 
