@@ -169,7 +169,7 @@ class GraphEncoder(nn.Module):
 
         for layer_idx in range(0, len(self.layer_stack), 2):
             n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
-            n_embed_t = F.relu(self.layer_stack[layer_idx + 1](n_embed_t, data.batch))
+            # n_embed_t = F.relu(self.layer_stack[layer_idx + 1](n_embed_t, data.batch))
             g_embed_t = self.global_pool(n_embed_t, data.batch)
 
             g_embed = torch.cat((g_embed, g_embed_t), dim=1)
