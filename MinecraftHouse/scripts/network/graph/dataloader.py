@@ -14,7 +14,7 @@ class GraphDataset(Dataset):
         self.root_path = f'../../../../local_datasets/house_datasets/{data_type}'
 
         self.filenames = []
-        for filename in os.listdir(self.folder_path):
+        for filename in os.listdir(self.root_path):
             self.filenames.append(filename)
 
         self.data_length = len(self.filenames)
