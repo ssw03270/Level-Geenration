@@ -15,7 +15,7 @@ class GraphDataset(Dataset):
 
         self.filenames = []
         for filename in os.listdir(self.root_path):
-            self.filenames.append(filename)
+            self.filenames.append(f'{self.root_path}/{filename}')
 
         self.data_length = len(self.filenames)
         print(f'data_length: {self.data_length}')
