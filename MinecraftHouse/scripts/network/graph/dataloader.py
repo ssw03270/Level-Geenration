@@ -27,7 +27,7 @@ class GraphDataset(Dataset):
 
         local_grid = data['local_grid']
         node_list = data['node_list']
-        edge_index = data['edge_index']
+        edge_index = data['edge_list']
         gt_grid = data['gt_grid']
         gt_id = data['gt_id']
 
