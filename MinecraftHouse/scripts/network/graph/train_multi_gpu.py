@@ -170,6 +170,9 @@ class Trainer:
                     wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
 
+                # if (epoch + 1) % self.val_epoch == 0:
+                #
+
                 if (epoch + 1) % self.save_epoch == 0:
                     checkpoint = {
                         'epoch': epoch,
@@ -188,16 +191,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=256, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
-    parser.add_argument("--max_epoch", type=int, default=1000, help="Maximum number of epochs for training.")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training.")
+    parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
     parser.add_argument("--use_wandb", type=bool, default=True, help="Use tensorboard.")
     parser.add_argument("--use_checkpoint", type=bool, default=False, help="Use checkpoint model.")
     parser.add_argument("--checkpoint_epoch", type=int, default=0, help="Use checkpoint index.")
     parser.add_argument("--val_epoch", type=int, default=1, help="Use checkpoint index.")
-    parser.add_argument("--save_epoch", type=int, default=50, help="Use checkpoint index.")
+    parser.add_argument("--save_epoch", type=int, default=1, help="Use checkpoint index.")
     parser.add_argument("--save_dir_path", type=str, default="graph", help="save dir path")
     parser.add_argument("--lr", type=float, default=3e-5, help="save dir path")
     parser.add_argument("--local-rank", type=int)
