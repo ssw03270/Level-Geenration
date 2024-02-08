@@ -11,25 +11,25 @@ class GraphDataset(Dataset):
 
         self.data_type = data_type
 
-        self.file_path = f'../../../datasets/preprocessed/{data_type}_dataset.pkl'
-        with open(self.file_path, 'rb') as f:
-            data = pickle.load(f)
+        self.root_path = f'../../../../local_datasets/house_datasets/{data_type}'
 
-        self.local_grids = data['local_grids']
-        self.node_lists = data['node_lists']
-        self.edge_lists = data['edge_lists']
-        self.gt_grids = data['gt_grids']
-        self.gt_ids = data['gt_ids']
+        self.filenames = []
+        for filename in os.listdir(self.folder_path):
+            self.filenames.append(filename)
 
-        self.data_length = len(self.gt_ids)
+        self.data_length = len(self.filenames)
         print(f'data_length: {self.data_length}')
 
     def get(self, idx):
-        local_grid = self.local_grids[idx]
-        node_list = self.node_lists[idx]
-        edge_index = self.edge_lists[idx]
-        gt_grid = self.gt_grids[idx]
-        gt_id = self.gt_ids[idx]
+        file_name = self.filenames[idx]
+        with open(file_name, 'rb') as f:
+            data = pickle.load(f)
+
+        local_grid = data['local_grid']
+        node_list = data['node_list']
+        edge_index = data['edge_index']
+        gt_grid = data['gt_grid']
+        gt_id = data['gt_id']
 
         local_grid = torch.tensor(local_grid, dtype=torch.long)
         position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32)

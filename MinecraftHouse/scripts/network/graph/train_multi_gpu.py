@@ -77,7 +77,7 @@ class Trainer:
         self.device = torch.device(f'cuda:{self.local_rank}') if torch.cuda.is_available() else torch.device('cpu')
 
         # Dataset and Dataloader
-        self.train_dataset = GraphDataset(data_type='val')
+        self.train_dataset = GraphDataset(data_type='train')
         self.train_sampler = DistributedSampler(dataset=self.train_dataset,
                                                 num_replicas=torch.distributed.get_world_size(), rank=self.local_rank,
                                                 shuffle=True)
