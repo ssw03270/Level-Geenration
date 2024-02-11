@@ -76,7 +76,7 @@ class MultiHeadAttention(nn.Module):
 class Conv3DBNReLU(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
         super(Conv3DBNReLU, self).__init__()
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding)
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, bias=False)
         self.bn = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
@@ -194,6 +194,7 @@ class GenerativeModel(nn.Module):
         self.pos_conv = Conv3DBNReLU(d_model, 1, kernel_size=1, padding=0)
 
         self.id_fc = nn.Linear(d_model, 300)
+        self._init_params()
 
     def forward(self, data):
         batch_size = data.local_grid.shape[0] // self.grid_size
@@ -224,3 +225,17 @@ class GenerativeModel(nn.Module):
         id_output = torch.softmax(id_output, dim=-1)
 
         return pos_output, id_output
+
+    def _init_params(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv3d):
+                if m.bias is None:
+                    # Normal Conv3d layers
+                    nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                else:
+                    # Last layers of coords and types predictions
+                    nn.init.normal_(m.weight, mean=0, std=0.001)
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm3d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
