@@ -72,11 +72,11 @@ class MultiHeadAttention(nn.Module):
         q += residual
         q = self.layer_norm(q)
 
-        return q
+        return q, attn
 class Conv3DBNReLU(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
         super(Conv3DBNReLU, self).__init__()
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, bias=False)
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding)
         self.bn = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
@@ -169,14 +169,15 @@ class GraphEncoder(nn.Module):
 
         for layer_idx in range(0, len(self.layer_stack), 2):
             n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
-            n_embed_t = F.relu(self.layer_stack[layer_idx + 1](n_embed_t, data.batch))
+            n_embed_t, attn = self.layer_stack[layer_idx + 1](n_embed_t, data.batch)
+            n_embed_t = F.relu(n_embed_t)
             g_embed_t = self.global_pool(n_embed_t, data.batch)
 
             g_embed = torch.cat((g_embed, g_embed_t), dim=1)
 
         latent = self.aggregate(g_embed)
 
-        return latent
+        return latent, attn
 
 class GenerativeModel(nn.Module):
     def __init__(self, n_layer, d_model):
@@ -194,12 +195,12 @@ class GenerativeModel(nn.Module):
         self.pos_conv = Conv3DBNReLU(d_model, 1, kernel_size=1, padding=0)
 
         self.id_fc = nn.Linear(d_model, 300)
-        self._init_params()
+        # self._init_params()
 
     def forward(self, data):
         batch_size = data.local_grid.shape[0] // self.grid_size
         enc_local = self.local_encoder(data.local_grid)
-        enc_graph = self.graph_encoder(data)
+        enc_graph, attn = self.graph_encoder(data)
 
         enc_graph = enc_graph.view(batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
 
@@ -224,8 +225,10 @@ class GenerativeModel(nn.Module):
         id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[batch_indices, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
-        return pos_output, id_output
-
+        if self.training:
+            return pos_output, id_output
+        else:
+            return pos_output, id_output, attn
     def _init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv3d):

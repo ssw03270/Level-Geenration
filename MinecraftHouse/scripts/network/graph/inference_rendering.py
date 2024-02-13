@@ -3,13 +3,13 @@ import random
 import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data
 
 from model import GenerativeModel
 from dataloader import GraphDataset
 
 from tqdm import tqdm
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
 
 def create_cube(center, size=1):
@@ -86,6 +86,35 @@ def rendering(position_sequence, id_sequence):
 
     fig.show()
 
+def rendering_attn(position_sequence, id_sequence, attn_map):
+    position_sequence = position_sequence.cpu().detach().numpy()
+    id_sequence = id_sequence.cpu().detach().numpy()
+
+    colors_hex = ['#%02x%02x%02x' % (255 - int(score * 255), 255 - int(score * 255), 255 - int(score * 255)) for score
+                  in attn_map]
+    colors_hex.append('#FF0000')  # 빨간색 추가
+    print(position_sequence.shape, id_sequence.shape, len(colors_hex))
+
+    fig = go.Figure()
+    for coord, id, color in zip(position_sequence, id_sequence, colors_hex):
+        if len(coord) == 0:
+            continue
+
+        mesh = create_mesh([[coord[0], coord[2], coord[1]]], id, color)
+
+        fig.add_trace(mesh)
+
+    # Update the layout
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(range=[-30, 30]),
+            yaxis=dict(range=[-30, 30]),
+            zaxis=dict(range=[-30, 30])
+        )
+    )
+
+    fig.show()
+
 if __name__ == '__main__':
     # Set the argparse
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
@@ -128,18 +157,20 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         # Iterate over batches
+        iter = 5
         for data in tqdm(test_dataloader):
             data = data.to(device=device)
-            rendering(data.position_feature, data.id_feature)
+            # rendering(data.position_feature, data.id_feature)
 
-            for idx in range(50):
-                position_output, id_output = generative_model(data)
+            for idx in range(1):
+                position_output, id_output, attn = generative_model(data)
                 position_output = torch.argmax(position_output, dim=-1).cpu().detach().numpy()
 
                 grid_size = 7
-                new_pos = [position_output % grid_size - grid_size // 2,
-                           position_output // grid_size % grid_size - grid_size // 2,
-                           position_output // (grid_size * grid_size) - grid_size // 2]
+                z = position_output % grid_size
+                x = position_output // (grid_size * grid_size)
+                y = (position_output - z - x * (grid_size * grid_size)) // grid_size
+                new_pos = [x - grid_size // 2, y - grid_size // 2, z - grid_size // 2]
                 new_pos = np.array(new_pos)
                 new_pos = np.reshape(new_pos, (-1))
                 new_pos = torch.tensor([new_pos]).to(device=device)
@@ -173,10 +204,10 @@ if __name__ == '__main__':
 
                 data.local_grid = local_grid
 
-                for idx, pos in enumerate(data.position_feature[:-1]):
+                for jdx, pos in enumerate(data.position_feature[:-1]):
                     if torch.sum(torch.abs(pos)) == 1:
-                        last_idx = len(data.position_feature) - 1
-                        new_edge = torch.tensor([[idx, idx, last_idx], [idx, last_idx, idx]], dtype=torch.long).to(device=device)
+                        last_jdx = len(data.position_feature) - 1
+                        new_edge = torch.tensor([[jdx, jdx, last_jdx], [jdx, last_jdx, jdx]], dtype=torch.long).to(device=device)
                         data.edge_index = torch.cat((data.edge_index, new_edge), dim=1)
 
                 data.each_num_nodes += 1
@@ -184,5 +215,12 @@ if __name__ == '__main__':
 
                 data.batch = torch.cat((data.batch, torch.tensor([0], dtype=torch.long).to(device)), dim=0)
 
-            print(data.position_feature)
-            rendering(data.position_feature, data.id_feature)
+                attn = attn[0, :, -1, :]
+                attn = torch.mean(attn, dim=0)
+                print(attn)
+
+            rendering_attn(data.position_feature, data.id_feature, attn)
+            iter -= 1
+
+            if iter <= 0:
+                break
