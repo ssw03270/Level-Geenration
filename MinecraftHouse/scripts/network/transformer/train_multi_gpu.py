@@ -140,7 +140,7 @@ class Trainer:
                 # Zero the gradients
                 self.optimizer.zero_grad()
 
-                local_grids, position_features, id_features, gt_grids, gt_ids, pad_mask = data.to(device=self.device)
+                local_grids, position_features, id_features, gt_grids, gt_ids, pad_mask = data
                 local_grids = local_grids.to(device=self.device)
                 position_features = position_features.to(device=self.device)
                 id_features = id_features.to(device=self.device)
