@@ -1,10 +1,9 @@
-import numpy as np
 import torch
 import torch.nn as nn
-from layer import EncoderLayer, DecoderLayer
-from sub_layer import MultiHeadAttention
-from transformers import BertModel
-
+import torch.nn.functional as F
+import torch_geometric
+import numpy as np
+from layer import EncoderLayer
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_hid, seq_length):
@@ -24,113 +23,116 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         return self.pos_table[:, :x.size(1)].clone().detach()
 
+class Conv3DBNReLU(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
+        super(Conv3DBNReLU, self).__init__()
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding)
+        self.bn = nn.BatchNorm3d(out_channels)
 
-class TrnasformerEncoder(nn.Module):
-    def __init__(self, n_layer, n_head, d_model, d_inner, dropout):
-        super(TrnasformerEncoder, self).__init__()
+    def forward(self, x):
+        return F.relu(self.bn(self.conv(x)))
 
-        # self.pos_enc = PositionalEncoding(d_model, 2048)
+class LocalEncoder(nn.Module):
+    def __init__(self, d_model, grid_size):
+        super(LocalEncoder, self).__init__()
+
+        self.d_model = d_model
+        self.grid_size = grid_size
+
+        self.id_embedding = nn.Embedding(300, d_model)
+
+        self.layer1 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
+        self.layer2 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
+        self.layer3 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
+        self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
+
+    def forward(self, x):
+        batch_size = x.shape[0] // self.grid_size
+
+        x = x.reshape(batch_size, -1)
+        x = torch.relu(self.id_embedding(x))
+        x = x.reshape(batch_size, self.grid_size, self.grid_size, self.grid_size, -1)
+        x = x.permute(0, 4, 1, 2, 3)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = x.permute(0, 2, 3, 4, 1)
+        return x
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, n_layer, d_model, n_head=4, dropout=0.1):
+        super(TransformerEncoder, self).__init__()
+
+        self.pos_enc = PositionalEncoding(d_model, 4000)
         self.dropout = nn.Dropout(dropout)
+
+        self.fc_layer = nn.Linear(d_model * 3, d_model)
+
         self.layer_stack = nn.ModuleList([
-            EncoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout)
+            EncoderLayer(d_model=d_model, d_inner=d_model, n_head=n_head, dropout=dropout)
             for _ in range(n_layer)
         ])
 
-    def forward(self, enc_input, enc_mask):
-        enc_output = enc_input  # + self.pos_enc(enc_input)
-        enc_output = self.dropout(enc_output)
+    def forward(self, position_features, id_features, pad_mask):
+        enc_input = torch.cat([position_features, id_features, self.pos_enc(id_features)])
+        enc_input = self.fc_layer(enc_input)
+
+        enc_output = self.dropout(enc_input)
 
         for enc_layer in self.layer_stack:
-            enc_output = enc_layer(enc_output, enc_mask)
+            enc_output = enc_layer(enc_output, pad_mask)
 
-        return enc_output
+        return enc_output[:, 0]
 
+class GenerativeModel(nn.Module):
+    def __init__(self, n_layer, d_model):
+        super(GenerativeModel, self).__init__()
 
-class TransformerDecoder(nn.Module):
-    def __init__(self, n_layer, n_head, d_model, d_inner, dropout, use_additional_global_attn=False):
-        super(TransformerDecoder, self).__init__()
+        self.n_layer = n_layer
+        self.d_model = d_model
+        self.grid_size = 7
 
-        self.position_encoding = nn.Linear(3, int(d_model / 2))
-        self.id_embedding = nn.Embedding(257, int(d_model / 4))
-        self.category_embedding = nn.Embedding(37, int(d_model / 4))
+        self.local_encoder = LocalEncoder(d_model, self.grid_size)
+        self.transformer_encoder = TransformerEncoder(n_layer, d_model)
 
-        self.pos_enc = PositionalEncoding(d_model, 2048)
-        self.dropout = nn.Dropout(dropout)
-        self.layer_stack = nn.ModuleList([
-            DecoderLayer(d_model=d_model, d_inner=d_inner, n_head=n_head, dropout=dropout,
-                         use_additional_global_attn=use_additional_global_attn)
-            for _ in range(n_layer)
-        ])
+        self.conv = Conv3DBNReLU(d_model * 2, d_model, kernel_size=1, padding=0)
 
-    def forward(self, enc_input, position_sequence, id_sequence, category_sequence,
-                enc_mask, dec_mask=None, local_mask=None, category_mask=None, id_mask=None):
-        position_sequence = self.position_encoding(position_sequence)
-        id_sequence = self.id_embedding(id_sequence)
-        category_sequence = self.category_embedding(category_sequence)
+        self.pos_conv = Conv3DBNReLU(d_model, 1, kernel_size=1, padding=0)
 
-        dec_input = torch.cat((position_sequence, id_sequence, category_sequence), dim=-1)
-        dec_output = dec_input + self.pos_enc(dec_input)
-        dec_output = self.dropout(dec_output)
+        self.id_fc = nn.Linear(d_model, 300)
 
-        for dec_layer in self.layer_stack:
-            dec_output = dec_layer(enc_input, dec_output, enc_mask=enc_mask,
-                                   dec_mask=dec_mask, local_mask=local_mask,
-                                   category_mask=category_mask, id_mask=id_mask)
+    def forward(self, local_grids, position_features, id_features, pad_mask, gt_grid):
+        enc_local = self.local_encoder(local_grids)
+        enc_transformer, attn = self.transformer_encoder(position_features, id_features, pad_mask)
 
-        return dec_output
+        batch_size = enc_local.shape[0]
+        enc_transformer = enc_transformer.view(batch_size, 1, 1, 1, self.d_model).expand(-1, self.grid_size, self.grid_size, self.grid_size, -1)
 
-class Transformer(nn.Module):
-    def __init__(self, d_model, d_hidden, n_head, n_layer, dropout):
-        super().__init__()
-        self.bert_encoder = BertModel.from_pretrained('bert-base-uncased')
-        self.bert_encoding = nn.Linear(768, d_model)
+        enc_output = torch.cat((enc_local, enc_transformer), dim=-1)
+        enc_output = enc_output.permute(0, 4, 1, 2, 3).contiguous()
+        enc_output = self.conv(enc_output)
 
-        self.block_decoder = TransformerDecoder(n_layer=n_layer, n_head=n_head, d_model=d_model,
-                                                d_inner=d_hidden, dropout=dropout, use_additional_global_attn=False)
+        pos_output = self.pos_conv(enc_output).squeeze()
 
-        self.category_decoding = nn.Linear(d_model, d_model)
-        self.category_fc = nn.Linear(d_model, 37)
+        torch.autograd.set_detect_anomaly(True)
+        if self.training:
+            id_idx = gt_grid.reshape(batch_size, -1)
+            id_idx = torch.argmax(id_idx, dim=-1)
+        else:
+            id_idx = pos_output.reshape(batch_size, -1)
+            id_idx = torch.argmax(id_idx, dim=-1)
 
-        self.id_decoding = nn.Linear(d_model, d_model)
-        self.id_fc = nn.Linear(d_model, 257)
+        pos_output = pos_output.reshape(batch_size, -1)
+        pos_output = torch.softmax(pos_output, dim=-1)
 
-        self.position_decoding = nn.Linear(d_model, d_model)
-        self.position_fc = nn.Linear(d_model, 3)
+        batch_indices = torch.arange(0, batch_size, device=enc_output.device)
+        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[batch_indices, :, id_idx])
+        id_output = torch.softmax(id_output, dim=-1)
 
-    def get_subsequent_mask(self, seq, diagonal):
-        sz_b, len_s = seq.size()
-        subsequent_mask = (1 - torch.triu(
-            torch.ones((1, len_s, len_s), device=seq.device), diagonal=diagonal)).bool()
-        return subsequent_mask
-
-    def forward(self, text_sequence, position_sequence, id_sequence, category_sequence,
-                pad_mask_sequence):
-        bert_input = text_sequence['input_ids']
-        bert_mask = text_sequence['attention_mask']
-        bert_output = self.bert_encoder(bert_input, attention_mask=bert_mask)
-        bert_output = bert_output['last_hidden_state']
-        bert_output = self.bert_encoding(bert_output)
-        bert_mask = bert_mask.unsqueeze(1)
-
-        pad_mask_sequence = pad_mask_sequence.unsqueeze(1)
-        sub_mask_sequence = self.get_subsequent_mask(id_sequence, diagonal=1)
-        global_mask = pad_mask_sequence & sub_mask_sequence
-
-        dec_output = self.block_decoder(bert_output, position_sequence, id_sequence, category_sequence,
-                                        enc_mask=bert_mask, dec_mask=global_mask)
-
-        decoded_category = self.category_decoding(dec_output)
-        decoded_category = torch.relu(decoded_category)
-        decoded_category = self.category_fc(decoded_category)
-        decoded_category = torch.softmax(decoded_category, dim=-1)
-
-        decoded_id = self.id_decoding(dec_output)
-        decoded_id = torch.relu(decoded_id)
-        decoded_id = self.id_fc(decoded_id)
-        decoded_id = torch.softmax(decoded_id, dim=-1)
-
-        decoded_position = self.position_decoding(dec_output)
-        decoded_position = torch.relu(decoded_position)
-        decoded_position = self.position_fc(decoded_position)
-
-        return decoded_category, decoded_id, decoded_position
+        if self.training:
+            return pos_output, id_output
+        else:
+            return pos_output, id_output, attn
