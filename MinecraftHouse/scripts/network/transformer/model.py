@@ -89,9 +89,9 @@ class TransformerEncoder(nn.Module):
         enc_output = self.dropout(enc_input)
 
         for enc_layer in self.layer_stack:
-            enc_output = enc_layer(enc_output, pad_mask.unsqueeze(-2))
+            enc_output, attn = enc_layer(enc_output, pad_mask)
 
-        return enc_output[:, 0]
+        return enc_output[:, 0], attn
 
 class GenerativeModel(nn.Module):
     def __init__(self, n_layer, d_model):

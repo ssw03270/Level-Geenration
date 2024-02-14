@@ -9,10 +9,10 @@ class EncoderLayer(nn.Module):
         self.pos_ffn = PositionwiseFeedForward(d_model=d_model, d_inner=d_inner, dropout=dropout)
 
     def forward(self, enc_input, mask=None):
-        enc_output, _ = self.self_attn(enc_input, enc_input, enc_input, mask=mask)
+        enc_output, attn = self.self_attn(enc_input, enc_input, enc_input, mask=mask)
         enc_output = self.pos_ffn(enc_output)
 
-        return enc_output
+        return enc_output, attn
 
 class DecoderLayer(nn.Module):
     def __init__(self, d_model, d_inner, n_head, dropout, use_additional_global_attn=False):
