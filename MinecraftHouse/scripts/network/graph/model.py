@@ -156,7 +156,7 @@ class GraphEncoder(nn.Module):
 
         self.layer_stack = nn.ModuleList()
         for _ in range(self.n_layer):
-            self.layer_stack.append(self.conv_gcn(d_model, d_model))
+            # self.layer_stack.append(self.conv_gcn(d_model, d_model))
             self.layer_stack.append(MultiHeadAttention(d_model=d_model))
             self.layer_stack.append(PositionwiseFeedForward(d_model=d_model, d_inner=d_model * 4))
 
@@ -193,21 +193,21 @@ class GraphEncoder(nn.Module):
         node_feature = F.relu(self.node_encoding(node_feature))
 
         n_embed_t = node_feature
-        g_embed = self.global_pool(n_embed_t, data.batch)
+        # g_embed = self.global_pool(n_embed_t, data.batch)
 
-        for layer_idx in range(0, len(self.layer_stack), 3):
-            n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
+        for layer_idx in range(0, len(self.layer_stack), 2):
+            # n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
             n_embed_t, attn = self.layer_stack[layer_idx + 1](n_embed_t, data.batch)
             n_embed_t = self.layer_stack[layer_idx + 2](n_embed_t)
 
-            g_embed_t = self.global_pool(n_embed_t, data.batch)
+            # g_embed_t = self.global_pool(n_embed_t, data.batch)
+            #
+            # g_embed = torch.cat((g_embed, g_embed_t), dim=1)
 
-            g_embed = torch.cat((g_embed, g_embed_t), dim=1)
+        # latent = self.aggregate(g_embed)
 
-        latent = self.aggregate(g_embed)
-
-        return latent, attn
-
+        # return latent, attn
+        return n_embed_t, attn
 class GenerativeModel(nn.Module):
     def __init__(self, n_layer, d_model):
         super(GenerativeModel, self).__init__()
