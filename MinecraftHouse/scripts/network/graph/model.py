@@ -207,7 +207,8 @@ class GraphEncoder(nn.Module):
         # latent = self.aggregate(g_embed)
 
         # return latent, attn
-        return n_embed_t, attn
+        g_embed_t = self.global_pool(n_embed_t, data.batch)
+        return g_embed_t, attn
 class GenerativeModel(nn.Module):
     def __init__(self, n_layer, d_model):
         super(GenerativeModel, self).__init__()
