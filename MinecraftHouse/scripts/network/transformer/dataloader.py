@@ -6,8 +6,8 @@ import pickle
 import os
 
 class HouseDataset(Dataset):
-    def __init__(self, data_type='train', transform=None, pre_transform=None):
-        super(HouseDataset, self).__init__(transform, pre_transform)
+    def __init__(self, data_type='train'):
+        super(HouseDataset, self)
 
         self.data_type = data_type
 
