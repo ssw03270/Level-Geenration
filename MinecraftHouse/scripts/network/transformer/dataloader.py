@@ -26,7 +26,7 @@ class HouseDataset(Dataset):
         with open(file_name, 'rb') as f:
             data = pickle.load(f)
 
-        local_grid = data['local_grid']
+        local_grid = np.array(data['local_grid'])
         node_list = data['node_list']
         gt_grid = data['gt_grid']
         gt_id = data['gt_id']
