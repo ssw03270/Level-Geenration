@@ -82,6 +82,7 @@ class TransformerEncoder(nn.Module):
     def forward(self, position_features, id_features, pad_mask):
         position_feature = F.relu(self.position_encoding(position_features))
         id_feature = F.relu(self.id_embedding(id_features)).squeeze(1)
+        id_feature = id_feature.reshape(position_feature.shape[0], position_feature.shape[1], position_feature.shape[2])
 
         enc_input = torch.cat([position_feature, id_feature], dim=-1)
         enc_input = self.fc_layer(enc_input) + self.pos_enc(id_feature)
