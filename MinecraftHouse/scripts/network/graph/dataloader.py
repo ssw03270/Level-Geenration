@@ -33,7 +33,7 @@ class GraphDataset(Dataset):
         gt_id = data['gt_id']
 
         local_grid = torch.tensor(local_grid, dtype=torch.long)
-        position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32) / 32
+        position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32)
         id_feature = torch.tensor(np.array(node_list)[:, 3:], dtype=torch.long)
         edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
         gt_grid = torch.tensor(gt_grid, dtype=torch.long)

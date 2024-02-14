@@ -9,6 +9,33 @@ def attention_mask(batch):
     mask = torch.eq(batch[:, None], batch[None, :])  # 같은 배치 내의 노드들에 대해서만 True
     return mask.unsqueeze(0)
 
+class PositionwiseFeedForward(nn.Module):
+    """
+    Implements the position-wise feed-forward sub-layer.
+
+    Args:
+    - d_in (int): Input dimensionality.
+    - d_hid (int): Dimensionality of the hidden layer.
+    - dropout (float, optional): Dropout rate. Default is 0.1.
+    """
+
+    def __init__(self, d_model, d_inner, dropout=0.1):
+        super().__init__()
+        self.w1 = nn.Linear(d_model, d_inner)
+        self.w2 = nn.Linear(d_inner, d_model)
+        self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        residual = x
+        x = self.w1(x)
+        x = torch.relu(x)
+        x = self.w2(x)
+        x += residual
+        x = self.layer_norm(x)
+
+        return x
+
 class ScaledDotProductAttention(nn.Module):
     def __init__(self, temperature, attn_dropout=0.1):
         super(ScaledDotProductAttention, self).__init__()
@@ -131,6 +158,7 @@ class GraphEncoder(nn.Module):
         for _ in range(self.n_layer):
             self.layer_stack.append(self.conv_gcn(d_model, d_model))
             self.layer_stack.append(MultiHeadAttention(d_model=d_model))
+            self.layer_stack.append(PositionwiseFeedForward(d_model=d_model, d_inner=d_model * 4))
 
         self.aggregate = nn.Linear(int(d_model * (1.0 + self.n_layer)), d_model)
 
@@ -167,10 +195,11 @@ class GraphEncoder(nn.Module):
         n_embed_t = node_feature
         g_embed = self.global_pool(n_embed_t, data.batch)
 
-        for layer_idx in range(0, len(self.layer_stack), 2):
+        for layer_idx in range(0, len(self.layer_stack), 3):
             n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
             n_embed_t, attn = self.layer_stack[layer_idx + 1](n_embed_t, data.batch)
-            n_embed_t = F.relu(n_embed_t)
+            n_embed_t = self.layer_stack[layer_idx + 2](n_embed_t)
+
             g_embed_t = self.global_pool(n_embed_t, data.batch)
 
             g_embed = torch.cat((g_embed, g_embed_t), dim=1)
