@@ -209,7 +209,7 @@ class GraphEncoder(nn.Module):
         # return latent, attn
         batch_index = data.batch  # 각 노드가 어느 배치에 속하는지의 인덱스
         batch_size = batch_index.max().item() + 1  # 배치 크기 (그래프의 수)
-        first_node_indices =  batch_index.sort()[1][batch_index.sort()[1] == torch.arange(batch_size).unsqueeze(1)].min(dim=1)[0]
+        first_node_indices = batch_index.sort()[1][batch_index.sort()[1] == torch.arange(batch_size).to(device=n_embed_t.device).unsqueeze(1)].min(dim=1)[0]
 
         return n_embed_t[first_node_indices], attn
 class GenerativeModel(nn.Module):
