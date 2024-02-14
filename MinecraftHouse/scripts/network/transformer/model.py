@@ -134,8 +134,8 @@ class GenerativeModel(nn.Module):
         pos_output = pos_output.reshape(batch_size, -1)
         pos_output = torch.softmax(pos_output, dim=-1)
 
-        print(enc_output.shape, enc_output.reshape(batch_size, self.d_model, -1).shape, enc_output.reshape(batch_size, self.d_model, -1)[:, :, id_idx].shape)
-        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[:, :, id_idx])
+        batch_indices = torch.arange(0, batch_size, device=enc_output.device)
+        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[batch_indices, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
         if self.training:
