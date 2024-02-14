@@ -89,7 +89,7 @@ class TransformerEncoder(nn.Module):
         enc_output = self.dropout(enc_input)
 
         for enc_layer in self.layer_stack:
-            enc_output = enc_layer(enc_output, pad_mask)
+            enc_output = enc_layer(enc_output, pad_mask.unsqueeze(-2))
 
         return enc_output[:, 0]
 
