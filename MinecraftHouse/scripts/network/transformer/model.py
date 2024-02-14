@@ -72,7 +72,7 @@ class TransformerEncoder(nn.Module):
         self.pos_enc = PositionalEncoding(d_model, 4000)
         self.dropout = nn.Dropout(dropout)
 
-        self.fc_layer = nn.Linear(d_model * 3, d_model)
+        self.fc_layer = nn.Linear(d_model * 2, d_model)
 
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model=d_model, d_inner=d_model, n_head=n_head, dropout=dropout)
@@ -83,9 +83,8 @@ class TransformerEncoder(nn.Module):
         position_feature = F.relu(self.position_encoding(position_features))
         id_feature = F.relu(self.id_embedding(id_features)).squeeze(1)
 
-        print(position_feature.shape, id_feature.shape, self.pos_enc(id_feature).shape)
-        enc_input = torch.cat([position_feature, id_feature, self.pos_enc(id_feature)], dim=-1)
-        enc_input = self.fc_layer(enc_input)
+        enc_input = torch.cat([position_feature, id_feature], dim=-1)
+        enc_input = self.fc_layer(enc_input) + self.pos_enc(id_feature)
 
         enc_output = self.dropout(enc_input)
 
