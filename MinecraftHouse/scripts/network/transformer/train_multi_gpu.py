@@ -55,8 +55,8 @@ def collate_fn(batch):
         max_length = max_length if max_length > len(id_feature) else len(id_feature)
 
     pad_mask = [[True] * len(id_feature) + [False] * (max_length - len(id_feature)) for id_feature in id_features]
-    position_features = [position_feature + [[0, 0, 0]] * (max_length - len(position_feature)) for position_feature in position_features]
-    id_features = [id_feature + [0] * (max_length - len(id_feature)) for id_feature in id_features]
+    position_features = [np.concatenate((position_feature, [[0, 0, 0]] * (max_length - len(position_feature))), axis=0) for position_feature in position_features]
+    id_features = [np.concatenate(id_feature, [0] * (max_length - len(id_feature)), axis=0) for id_feature in id_features]
 
     local_grids = torch.tensor(local_grids, dtype=torch.long)
     position_features = torch.tensor(position_features, dtype=torch.float32)
