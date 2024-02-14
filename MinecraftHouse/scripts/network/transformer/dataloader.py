@@ -32,7 +32,7 @@ class HouseDataset(Dataset):
         gt_id = data['gt_id']
 
         position_feature = np.array(node_list)[:, :3]
-        id_feature = np.array(node_list)[:, 3:]
+        id_feature = np.array(node_list)[:, 3:][:, np.newaxis]
 
         return {
             'local_grid': local_grid,

@@ -56,14 +56,14 @@ def collate_fn(batch):
 
     pad_mask = [[True] * len(id_feature) + [False] * (max_length - len(id_feature)) for id_feature in id_features]
     position_features = [position_feature.tolist() + [[0, 0, 0]] * (max_length - len(position_feature)) for position_feature in position_features]
-    id_features = [id_feature.tolist() + [0] * (max_length - len(id_feature)) for id_feature in id_features]
+    id_features = [id_feature.tolist() + [[0]] * (max_length - len(id_feature)) for id_feature in id_features]
 
     local_grids = torch.tensor(local_grids, dtype=torch.long)
     position_features = torch.tensor(position_features, dtype=torch.float32)
     id_features = torch.tensor(id_features, dtype=torch.long)
     gt_grids = torch.tensor(gt_grids, dtype=torch.long)
     gt_ids = torch.tensor(gt_ids, dtype=torch.long)
-    pad_mask = torch.tensor(pad_mask, dtype=torch.bool)
+    pad_mask = torch.tensor(pad_mask, dtype=torch.long)
 
     return local_grids, position_features, id_features, gt_grids, gt_ids, pad_mask
 
