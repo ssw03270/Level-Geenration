@@ -150,7 +150,7 @@ class Trainer:
 
                 position_output, id_output = self.generative_model(local_grids, position_features, id_features, pad_mask, gt_grids)
 
-                gt_grid = gt_grids.reshape(self.batch_size, -1)
+                gt_grid = gt_grids.reshape(position_output.shape[0], -1)
                 gt_grid = torch.argmax(gt_grid, dim=-1)
 
                 # Compute the losses
