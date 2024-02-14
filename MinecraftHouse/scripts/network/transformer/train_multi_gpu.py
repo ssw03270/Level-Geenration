@@ -148,7 +148,7 @@ class Trainer:
                 gt_ids = gt_ids.to(device=self.device)
                 pad_mask = pad_mask.to(device=self.device)
 
-                position_output, id_output = self.generative_model(local_grids, position_features, id_features, pad_mask, gt_grid)
+                position_output, id_output = self.generative_model(local_grids, position_features, id_features, pad_mask, gt_grids)
 
                 gt_grid = gt_grids.reshape(self.batch_size, -1)
                 gt_grid = torch.argmax(gt_grid, dim=-1)
