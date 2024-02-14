@@ -47,7 +47,7 @@ class LocalEncoder(nn.Module):
         self.layer4 = Conv3DBNReLU(d_model, d_model, kernel_size=3)
 
     def forward(self, x):
-        batch_size = x.shape[0] // self.grid_size
+        batch_size = x.shape[0]
 
         x = x.reshape(batch_size, -1)
         x = torch.relu(self.id_embedding(x))
@@ -134,8 +134,7 @@ class GenerativeModel(nn.Module):
         pos_output = pos_output.reshape(batch_size, -1)
         pos_output = torch.softmax(pos_output, dim=-1)
 
-        batch_indices = torch.arange(0, batch_size, device=enc_output.device)
-        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[batch_indices, :, id_idx])
+        id_output = self.id_fc(enc_output.reshape(batch_size, self.d_model, -1)[:, :, id_idx])
         id_output = torch.softmax(id_output, dim=-1)
 
         if self.training:
