@@ -197,8 +197,8 @@ class GraphEncoder(nn.Module):
 
         for layer_idx in range(0, len(self.layer_stack), 2):
             # n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
-            n_embed_t, attn = self.layer_stack[layer_idx + 1](n_embed_t, data.batch)
-            n_embed_t = self.layer_stack[layer_idx + 2](n_embed_t)
+            n_embed_t, attn = self.layer_stack[layer_idx](n_embed_t, data.batch)
+            n_embed_t = self.layer_stack[layer_idx + 1](n_embed_t)
 
             # g_embed_t = self.global_pool(n_embed_t, data.batch)
             #
