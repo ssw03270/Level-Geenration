@@ -15,11 +15,7 @@ if __name__ == '__main__':
         valid_block_pos_list = data['valid_block_pos_list']
         valid_block_id_list = data['valid_block_id_list']
 
-        local_grids = []
-        node_lists = []
         edge_lists = []
-        gt_grids = []
-        gt_ids = []
         train_mask = []
 
         file_num = 0
@@ -51,9 +47,6 @@ if __name__ == '__main__':
                 else:
                     train_mask.append(False)
 
-                gt_grids.append(gt_grid)
-                gt_ids.append(gt_id)
-
                 # for local grid
                 local_grid = np.zeros((grid_size, grid_size, grid_size), dtype=voxel_grid.dtype)
 
@@ -77,12 +70,10 @@ if __name__ == '__main__':
 
                 # Copy the values from the array to the local_grid
                 local_grid[offset_x_start:offset_x_start + (x_end - x_start), offset_y_start:offset_y_start + (y_end - y_start), offset_z_start:offset_z_start + (z_end - z_start)] = voxel_grid[x_start:x_end, y_start:y_end, z_start:z_end]
-                local_grids.append(local_grid)
 
                 # for graph
                 node_list = np.concatenate((np.array(pos_list[:idx + 1]) - np.array(pos_list[idx]),
                                             np.array(id_list[:idx + 1])[:, np.newaxis]), axis=-1)
-                node_lists.append(node_list)
 
                 if idx == 0:
                     edge_list = [[0, 0]]
