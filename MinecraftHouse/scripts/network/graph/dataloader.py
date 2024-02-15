@@ -39,9 +39,8 @@ class GraphDataset(Dataset):
         gt_grid = torch.tensor(gt_grid, dtype=torch.long)
         gt_id = torch.tensor(gt_id, dtype=torch.long)
         each_num_nodes = torch.tensor([len(node_list)], dtype=torch.long)
-        temporal_edge_index = torch.tensor(np.concatenate((np.arange(len(node_list) - 1),
-                                                           np.arange(1, len(node_list))), axis=0), dtype=torch.long)
-        print(edge_index.shape, temporal_edge_index.shape)
+        temporal_edge_index = torch.tensor(np.concatenate(([np.arange(len(node_list) - 1)],
+                                                           [np.arange(1, len(node_list))]), axis=0), dtype=torch.long)
 
         data = Data(local_grid=local_grid, position_feature=position_feature, id_feature=id_feature,
                     edge_index=edge_index, gt_grid=gt_grid, gt_id=gt_id, num_nodes=len(node_list),
