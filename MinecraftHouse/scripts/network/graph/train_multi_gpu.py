@@ -152,67 +152,58 @@ class Trainer:
                 true_pos_sums += true_pos_sum
                 problem_pos_sums += problem_pos_sum
 
-            if self.local_rank == 0:
-                loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
-                loss_pos_mean = loss_pos_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
 
-                true_id_mean = true_id_sums.item() / (problem_id_sums.item())
-                true_pos_mean = true_pos_sums.item() / (problem_pos_sums.item())
+            if (epoch + 1) % self.val_epoch == 0:
+                self.generative_model.module.eval()
 
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE position: {loss_pos_mean:.4f}")
+                with torch.no_grad():
+                    val_loss_pos_sum = torch.Tensor([0.0]).to(self.device)
+                    val_loss_id_sum = torch.Tensor([0.0]).to(self.device)
 
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
-                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy position: {true_pos_mean:.4f}")
+                    val_true_pos_sums = torch.Tensor([0.0]).to(self.device)
+                    val_true_id_sums = torch.Tensor([0.0]).to(self.device)
 
-                if self.use_wandb:
-                    wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
-                    wandb.log({"Train ce position": loss_pos_mean}, step=epoch + 1)
+                    val_problem_pos_sums = torch.Tensor([0.0]).to(self.device)
+                    val_problem_id_sums = torch.Tensor([0.0]).to(self.device)
 
-                    wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
-                    wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
+                    # Iterate over batches
+                    for data in tqdm(self.val_dataloader):
+                        data = data.to(device=self.device)
+                        position_output, id_output = self.generative_model(data)
 
-                if (epoch + 1) % self.val_epoch == 0:
-                    self.generative_model.module.eval()
+                        batch_size = data['gt_grid'].shape[0] // 7
+                        gt_grid = data['gt_grid'].reshape(batch_size, -1)
+                        gt_grid = torch.argmax(gt_grid, dim=-1)
 
-                    with torch.no_grad():
-                        val_loss_pos_sum = torch.Tensor([0.0]).to(self.device)
-                        val_loss_id_sum = torch.Tensor([0.0]).to(self.device)
+                        # Compute the losses
+                        val_loss_id = cross_entropy_loss(id_output.detach(), data['gt_id'].detach())
+                        val_loss_pos = cross_entropy_loss(position_output.detach(), gt_grid.detach())
 
-                        val_true_pos_sums = torch.Tensor([0.0]).to(self.device)
-                        val_true_id_sums = torch.Tensor([0.0]).to(self.device)
+                        dist.all_reduce(val_loss_pos, op=dist.ReduceOp.SUM)
+                        dist.all_reduce(val_loss_id, op=dist.ReduceOp.SUM)
 
-                        val_problem_pos_sums = torch.Tensor([0.0]).to(self.device)
-                        val_problem_id_sums = torch.Tensor([0.0]).to(self.device)
+                        val_loss_pos_sum += val_loss_pos.detach()
+                        val_loss_id_sum += val_loss_id.detach()
 
-                        # Iterate over batches
-                        for data in tqdm(self.val_dataloader):
-                            data = data.to(device=self.device)
-                            position_output, id_output = self.generative_model(data)
+                        val_true_id_sum, val_problem_id_sum = get_accuracy(id_output.detach(),
+                                                                           data['gt_id'].detach())
+                        dist.all_reduce(torch.tensor(val_true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                        dist.all_reduce(torch.tensor(val_problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                        val_true_id_sums += val_true_id_sum
+                        val_problem_id_sums += val_problem_id_sum
 
-                            batch_size = data['gt_grid'].shape[0] // 7
-                            gt_grid = data['gt_grid'].reshape(batch_size, -1)
-                            gt_grid = torch.argmax(gt_grid, dim=-1)
+                        val_true_pos_sum, val_problem_pos_sum = get_accuracy(position_output.detach(),
+                                                                             gt_grid.detach())
+                        dist.all_reduce(torch.tensor(val_true_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
+                        dist.all_reduce(torch.tensor(val_problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
+                        val_true_pos_sums += val_true_pos_sum
+                        val_problem_pos_sums += val_problem_pos_sum
 
-                            # Compute the losses
-                            val_loss_id = cross_entropy_loss(id_output.detach(), data['gt_id'].detach())
-                            val_loss_pos = cross_entropy_loss(position_output.detach(), gt_grid.detach())
+                    self.generative_model.module.train()
 
-                            val_loss_pos_sum += val_loss_pos.detach()
-                            val_loss_id_sum += val_loss_id.detach()
-
-                            val_true_id_sum, val_problem_id_sum = get_accuracy(id_output.detach(),
-                                                                               data['gt_id'].detach())
-                            val_true_id_sums += val_true_id_sum
-                            val_problem_id_sums += val_problem_id_sum
-
-                            val_true_pos_sum, val_problem_pos_sum = get_accuracy(position_output.detach(),
-                                                                                 gt_grid.detach())
-                            val_true_pos_sums += val_true_pos_sum
-                            val_problem_pos_sums += val_problem_pos_sum
-
-                        val_loss_id_mean = val_loss_id_sum.item() / len(self.val_dataloader)
-                        val_loss_pos_mean = val_loss_pos_sum.item() / len(self.val_dataloader)
+                    if self.local_rank == 0:
+                        val_loss_id_mean = val_loss_id_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
+                        val_loss_pos_mean = val_loss_pos_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
 
                         val_true_id_mean = val_true_id_sums.item() / (val_problem_id_sums.item())
                         val_true_pos_mean = val_true_pos_sums.item() / (val_problem_pos_sums.item())
@@ -232,7 +223,25 @@ class Trainer:
                             wandb.log({"Validation accuracy id": val_true_id_mean}, step=epoch + 1)
                             wandb.log({"Validation accuracy position": val_true_pos_mean}, step=epoch + 1)
 
-                        self.generative_model.module.train()
+            if self.local_rank == 0:
+                loss_id_mean = loss_id_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+                loss_pos_mean = loss_pos_sum.item() / (len(self.train_dataloader) * dist.get_world_size())
+
+                true_id_mean = true_id_sums.item() / (problem_id_sums.item())
+                true_pos_mean = true_pos_sums.item() / (problem_pos_sums.item())
+
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE id: {loss_id_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train Loss CE position: {loss_pos_mean:.4f}")
+
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy id: {true_id_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - Train accuracy position: {true_pos_mean:.4f}")
+
+                if self.use_wandb:
+                    wandb.log({"Train ce id": loss_id_mean}, step=epoch + 1)
+                    wandb.log({"Train ce position": loss_pos_mean}, step=epoch + 1)
+
+                    wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
+                    wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
 
                 if (epoch + 1) % self.save_epoch == 0:
                     checkpoint = {
