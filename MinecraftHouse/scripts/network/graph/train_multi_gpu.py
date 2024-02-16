@@ -195,8 +195,8 @@ class Trainer:
                             gt_grid = torch.argmax(gt_grid, dim=-1)
 
                             # Compute the losses
-                            val_loss_id = cross_entropy_loss(id_output, data['gt_id'].detach())
-                            val_loss_pos = cross_entropy_loss(position_output, gt_grid.detach())
+                            val_loss_id = cross_entropy_loss(id_output.detach(), data['gt_id'].detach())
+                            val_loss_pos = cross_entropy_loss(position_output.detach(), gt_grid.detach())
 
                             dist.all_reduce(val_loss_pos, op=dist.ReduceOp.SUM)
                             dist.all_reduce(val_loss_id, op=dist.ReduceOp.SUM)
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
