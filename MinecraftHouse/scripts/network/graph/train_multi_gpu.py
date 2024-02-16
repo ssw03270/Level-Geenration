@@ -174,7 +174,7 @@ class Trainer:
 
                 if (epoch + 1) % self.val_epoch == 0:
                     self.generative_model.module.eval()
-                    # Zero the gradients
+
                     with torch.no_grad():
                         val_loss_pos_sum = torch.Tensor([0.0]).to(self.device)
                         val_loss_id_sum = torch.Tensor([0.0]).to(self.device)
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
     parser.add_argument("--n_layer", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
