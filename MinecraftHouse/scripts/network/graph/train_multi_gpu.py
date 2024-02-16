@@ -184,7 +184,7 @@ class Trainer:
 
                         val_problem_pos_sums = torch.Tensor([0.0]).to(self.device)
                         val_problem_id_sums = torch.Tensor([0.0]).to(self.device)
-                        print(1)
+
                         # Iterate over batches
                         for data in tqdm(self.val_dataloader):
                             data = data.to(device=self.device)
