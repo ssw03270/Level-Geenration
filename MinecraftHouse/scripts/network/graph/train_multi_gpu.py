@@ -18,6 +18,7 @@ from dataloader import GraphDataset
 
 import wandb
 
+
 def cross_entropy_loss(pred, trg):
     """
     Compute the binary cross-entropy loss between predictions and targets.
@@ -42,6 +43,7 @@ def get_accuracy(pred, trg):
     total = len(pred)
 
     return correct, total
+
 
 class Trainer:
     def __init__(self, d_model, n_layer, batch_size, max_epoch,
@@ -170,8 +172,74 @@ class Trainer:
                     wandb.log({"Train accuracy id": true_id_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy position": true_pos_mean}, step=epoch + 1)
 
-                # if (epoch + 1) % self.val_epoch == 0:
-                #
+                if (epoch + 1) % self.val_epoch == 0:
+                    self.generative_model.module.eval()
+                    # Zero the gradients
+                    with torch.no_grad():
+                        val_loss_pos_sum = torch.Tensor([0.0]).to(self.device)
+                        val_loss_id_sum = torch.Tensor([0.0]).to(self.device)
+
+                        val_true_pos_sums = torch.Tensor([0.0]).to(self.device)
+                        val_true_id_sums = torch.Tensor([0.0]).to(self.device)
+
+                        val_problem_pos_sums = torch.Tensor([0.0]).to(self.device)
+                        val_problem_id_sums = torch.Tensor([0.0]).to(self.device)
+
+                        # Iterate over batches
+                        for data in tqdm(self.val_dataloader):
+                            data = data.to(device=self.device)
+                            position_output, id_output = self.generative_model(data)
+
+                            batch_size = data['gt_grid'].shape[0] // 7
+                            gt_grid = data['gt_grid'].reshape(batch_size, -1)
+                            gt_grid = torch.argmax(gt_grid, dim=-1)
+
+                            # Compute the losses
+                            val_loss_id = cross_entropy_loss(id_output, data['gt_id'].detach())
+                            val_loss_pos = cross_entropy_loss(position_output, gt_grid.detach())
+
+                            dist.all_reduce(val_loss_pos, op=dist.ReduceOp.SUM)
+                            dist.all_reduce(val_loss_id, op=dist.ReduceOp.SUM)
+
+                            val_loss_pos_sum += val_loss_pos.detach()
+                            val_loss_id_sum += val_loss_id.detach()
+
+                            val_true_id_sum, val_problem_id_sum = get_accuracy(id_output.detach(),
+                                                                               data['gt_id'].detach())
+                            dist.all_reduce(torch.tensor(val_true_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                            dist.all_reduce(torch.tensor(val_problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
+                            val_true_id_sums += val_true_id_sum
+                            val_problem_id_sums += val_problem_id_sum
+
+                            val_true_pos_sum, val_problem_pos_sum = get_accuracy(position_output.detach(),
+                                                                                 gt_grid.detach())
+                            dist.all_reduce(torch.tensor(val_true_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
+                            dist.all_reduce(torch.tensor(val_problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
+                            val_true_pos_sums += val_true_pos_sum
+                            val_problem_pos_sums += val_problem_pos_sum
+
+                        val_loss_id_mean = val_loss_id_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
+                        val_loss_pos_mean = val_loss_pos_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
+
+                        val_true_id_mean = val_true_id_sums.item() / (val_problem_id_sums.item())
+                        val_true_pos_mean = val_true_pos_sums.item() / (val_problem_pos_sums.item())
+
+                        print(f"Epoch {epoch + 1}/{self.max_epoch} - Validation Loss CE id: {val_loss_id_mean:.4f}")
+                        print(
+                            f"Epoch {epoch + 1}/{self.max_epoch} - Validation Loss CE position: {val_loss_pos_mean:.4f}")
+
+                        print(f"Epoch {epoch + 1}/{self.max_epoch} - Validation accuracy id: {val_true_id_mean:.4f}")
+                        print(
+                            f"Epoch {epoch + 1}/{self.max_epoch} - Validation accuracy position: {val_true_pos_mean:.4f}")
+
+                        if self.use_wandb:
+                            wandb.log({"Validation ce id": val_loss_id_mean}, step=epoch + 1)
+                            wandb.log({"Validation ce position": val_loss_pos_mean}, step=epoch + 1)
+
+                            wandb.log({"Validation accuracy id": val_true_id_mean}, step=epoch + 1)
+                            wandb.log({"Validation accuracy position": val_true_pos_mean}, step=epoch + 1)
+
+                        self.generative_model.module.train()
 
                 if (epoch + 1) % self.save_epoch == 0:
                     checkpoint = {
@@ -191,8 +259,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=8, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
