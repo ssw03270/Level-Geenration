@@ -12,7 +12,7 @@ class GraphDataset(Dataset):
         self.data_type = data_type
 
         self.root_path = f'/local_datasets/house_datasets/{data_type}'
-        # self.root_path = f'../../../datasets/preprocessed/house_datasets/{data_type}'
+        self.root_path = f'../../../datasets/preprocessed/house_datasets/{data_type}'
 
         self.filenames = []
         for filename in os.listdir(self.root_path):

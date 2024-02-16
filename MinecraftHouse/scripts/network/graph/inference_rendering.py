@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # Define the arguments with their descriptions
     parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=3, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
@@ -160,10 +160,10 @@ if __name__ == '__main__':
         iter = 5
         for data in tqdm(test_dataloader):
             data = data.to(device=device)
-            # rendering(data.position_feature, data.id_feature)
+            rendering(data.position_feature, data.id_feature)
 
-            for idx in range(1):
-                position_output, id_output, attn = generative_model(data)
+            for idx in range(50):
+                position_output, id_output = generative_model(data)
                 position_output = torch.argmax(position_output, dim=-1).cpu().detach().numpy()
 
                 grid_size = 7
@@ -210,16 +210,16 @@ if __name__ == '__main__':
                         new_edge = torch.tensor([[jdx, jdx, last_jdx], [jdx, last_jdx, jdx]], dtype=torch.long).to(device=device)
                         data.edge_index = torch.cat((data.edge_index, new_edge), dim=1)
 
+                new_temporal_edge = torch.tensor([[len(data.position_feature - 1)], [len(data.position_feature)]], dtype=torch.long).to(device=device)
+                data.temporal_edge_index = torch.cat((data.temporal_edge_index, new_temporal_edge), dim=1)
+
                 data.each_num_nodes += 1
                 data.num_nodes += 1
 
                 data.batch = torch.cat((data.batch, torch.tensor([0], dtype=torch.long).to(device)), dim=0)
 
-                attn = attn[0, :, -1, :]
-                attn = torch.mean(attn, dim=0)
-                print(attn)
-
-            rendering_attn(data.position_feature, data.id_feature, attn)
+            # rendering_attn(data.position_feature, data.id_feature, attn)
+            rendering(data.position_feature, data.id_feature)
             iter -= 1
 
             if iter <= 0:
