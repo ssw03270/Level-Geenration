@@ -184,22 +184,27 @@ class Trainer:
 
                         val_problem_pos_sums = torch.Tensor([0.0]).to(self.device)
                         val_problem_id_sums = torch.Tensor([0.0]).to(self.device)
-
+                        print(1)
                         # Iterate over batches
                         for data in tqdm(self.val_dataloader):
                             data = data.to(device=self.device)
+                            print(2)
                             position_output, id_output = self.generative_model(data)
+                            print(3)
 
                             batch_size = data['gt_grid'].shape[0] // 7
                             gt_grid = data['gt_grid'].reshape(batch_size, -1)
                             gt_grid = torch.argmax(gt_grid, dim=-1)
 
+                            print(4)
                             # Compute the losses
                             val_loss_id = cross_entropy_loss(id_output.detach(), data['gt_id'].detach())
                             val_loss_pos = cross_entropy_loss(position_output.detach(), gt_grid.detach())
+                            print(5)
 
                             dist.all_reduce(val_loss_pos, op=dist.ReduceOp.SUM)
                             dist.all_reduce(val_loss_id, op=dist.ReduceOp.SUM)
+                            print(6)
 
                             val_loss_pos_sum += val_loss_pos.detach()
                             val_loss_id_sum += val_loss_id.detach()
@@ -210,6 +215,7 @@ class Trainer:
                             dist.all_reduce(torch.tensor(val_problem_id_sum).to(self.device), op=dist.ReduceOp.SUM)
                             val_true_id_sums += val_true_id_sum
                             val_problem_id_sums += val_problem_id_sum
+                            print(7)
 
                             val_true_pos_sum, val_problem_pos_sum = get_accuracy(position_output.detach(),
                                                                                  gt_grid.detach())
@@ -217,6 +223,7 @@ class Trainer:
                             dist.all_reduce(torch.tensor(val_problem_pos_sum).to(self.device), op=dist.ReduceOp.SUM)
                             val_true_pos_sums += val_true_pos_sum
                             val_problem_pos_sums += val_problem_pos_sum
+                            print(8)
 
                         val_loss_id_mean = val_loss_id_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
                         val_loss_pos_mean = val_loss_pos_sum.item() / (len(self.val_dataloader) * dist.get_world_size())
