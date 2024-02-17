@@ -42,7 +42,7 @@ class GraphDataset(Dataset):
         temporal_edge_index = torch.tensor(
             np.concatenate(
                 (
-                    [np.arange(len(node_list) - 1), np.arange(len(node_list))],  # 이전 -> 다음 노드 엣지
+                    [np.arange(len(node_list) - 1), np.arange(1, len(node_list))],  # 이전 -> 다음 노드 엣지
                     [np.arange(len(node_list)), np.arange(len(node_list))]  # 자기 자신으로의 엣지
                 ),
                 axis=1
