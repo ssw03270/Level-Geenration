@@ -33,7 +33,7 @@ class GraphDataset(Dataset):
         gt_id = data['gt_id']
 
         local_grid = torch.tensor(local_grid, dtype=torch.long)
-        position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32) / 32
+        position_feature = torch.tensor(np.array(node_list)[:, :3], dtype=torch.float32)
         id_feature = torch.tensor(np.array(node_list)[:, 3:], dtype=torch.long)
         edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
         gt_grid = torch.tensor(gt_grid, dtype=torch.long)
@@ -49,12 +49,13 @@ class GraphDataset(Dataset):
             ),
             dtype=torch.long
         )
-        # differences = torch.diff(position_feature, dim=0)
-        # direction_feature = torch.cat((torch.zeros(1, 3, dtype=torch.float32), differences), dim=0)
+        differences = torch.diff(position_feature, dim=0)
+        direction_feature = torch.cat((torch.zeros(1, 3, dtype=torch.float32), differences), dim=0)
 
         data = Data(local_grid=local_grid, position_feature=position_feature, id_feature=id_feature,
                     edge_index=edge_index, gt_grid=gt_grid, gt_id=gt_id, num_nodes=len(node_list),
-                    each_num_nodes=each_num_nodes, temporal_edge_index=temporal_edge_index)
+                    each_num_nodes=each_num_nodes, temporal_edge_index=temporal_edge_index,
+                    direction_feature=direction_feature)
         return data
 
     def len(self):
