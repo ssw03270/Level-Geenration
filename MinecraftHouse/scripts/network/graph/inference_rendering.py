@@ -120,8 +120,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a graph model with user-defined hyperparameters.")
 
     # Define the arguments with their descriptions
-    parser.add_argument("--d_model", type=int, default=64, help="Batch size for training.")
-    parser.add_argument("--n_layer", type=int, default=8, help="Batch size for training.")
+    parser.add_argument("--d_model", type=int, default=128, help="Batch size for training.")
+    parser.add_argument("--n_layer", type=int, default=4, help="Batch size for training.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
     parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epochs for training.")
     parser.add_argument("--seed", type=int, default=327, help="Random seed for reproducibility across runs.")
@@ -162,7 +162,7 @@ if __name__ == '__main__':
             data = data.to(device=device)
             rendering(data.position_feature, data.id_feature)
 
-            for idx in range(50):
+            for idx in range(100):
                 position_output, id_output = generative_model(data)
                 position_output = torch.argmax(position_output, dim=-1).cpu().detach().numpy()
 
@@ -182,6 +182,9 @@ if __name__ == '__main__':
                 data.id_feature = torch.cat((data.id_feature, new_id), dim=0)
 
                 data.position_feature -= new_pos
+
+                differences = torch.diff(data.position_feature, dim=0)
+                data.direction_feature = torch.cat((torch.zeros(1, 3, dtype=torch.float32).to(device=device), differences), dim=0)
 
                 local_grid = torch.zeros((grid_size, grid_size, grid_size), dtype=torch.long).to(device=device)
                 center_offset = torch.tensor([grid_size // 2, grid_size // 2, grid_size // 2],

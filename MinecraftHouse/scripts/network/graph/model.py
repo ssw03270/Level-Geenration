@@ -57,6 +57,7 @@ class GraphEncoder(nn.Module):
 
         self.conv_gcn = torch_geometric.nn.GCNConv
         self.global_pool = torch_geometric.nn.global_max_pool
+        self.dropout = nn.Dropout(0.1)
 
         self.layer_stack = nn.ModuleList()
         for _ in range(self.n_layer):
@@ -86,6 +87,7 @@ class GraphEncoder(nn.Module):
         for layer_idx in range(0, len(self.layer_stack), 2):
             n_embed_t = F.relu(self.layer_stack[layer_idx](n_embed_t, edge_index))
             n_embed_t = F.relu(self.layer_stack[layer_idx + 1](n_embed_t, temporal_edge_index))
+            n_embed_t = self.dropout(n_embed_t)
 
             g_embed_t = self.global_pool(n_embed_t, data.batch)
 
